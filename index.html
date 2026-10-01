@@ -361,10 +361,16 @@ const isMine = a => !S.user.owner || a === S.user.owner;
 
 async function api(action, payload) {
   let r;
-  try { r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: S.token, payload }) }); } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+  try {
+    r = action === 'bootstrap'
+      ? await fetch(API_URL + '?action=bootstrap' + (S.token ? '&token=' + encodeURIComponent(S.token) : ''))
+      : await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: S.token, payload }) });
+  } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
   let j;
-  try { j = await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด)'); }
+  try { j = await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (HTTP ' + r.status + ') ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด'); }
   if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(j.error); }
+  if (action === 'bootstrap' && !j.data) throw new Error('API ตอบกลับแต่ไม่มีข้อมูล — Apps Script อาจยังเป็นโค้ดเวอร์ชันเก่า (Deploy → Manage deployments → New version)');
+  if (action === 'save' && !j.idMap) throw new Error('บันทึกไม่สำเร็จ: API ไม่ได้รับคำขอบันทึก (ได้: ' + (j.message || 'ไม่ทราบ') + ')');
   return j;
 }
 async function loadData() {
