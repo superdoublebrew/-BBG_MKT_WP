@@ -72,7 +72,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .st-Inspected{background:#163332;color:#7FD3CF} :root:not([data-theme="light"]) .st-Follow-Up{background:#2A2644;color:#B9B0F2} }
 :root[data-theme="dark"] .st-Inspected{background:#163332;color:#7FD3CF}
 :root[data-theme="dark"] .st-Follow-Up{background:#2A2644;color:#B9B0F2}
-label.f,.f{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:13px;font-weight:600}
+label.f,.f{display:flex;flex-flow:row wrap;align-content:flex-start;align-items:baseline;gap:5px 4px;min-width:0;font-size:13px;font-weight:600}
+.f>*:not(.req){flex:1 1 100%;min-width:0}
 .in{width:100%;min-height:42px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:14.5px;font-weight:400}
 textarea.in{padding:9px 11px;min-height:84px;resize:vertical}
 .in.err{border-color:var(--red)}
@@ -141,14 +142,14 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 .kpis5 .kpi b{font-size:28px}
 .kpis5 .kpi b small{font-size:14px;font-weight:600;color:var(--muted)}
 .kpi.warn{background:var(--red-l);border-color:var(--red)}
-.dgrid2{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:14px}
-.dleft,.dright{display:flex;flex-direction:column;gap:14px;min-height:0}
-.dpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-height:0}
-.pn2{padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.dgrid2{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(300px,1fr);grid-template-rows:auto minmax(260px,1fr) auto;grid-template-areas:"hz hz fu" "pipe hot fu" "pipe hot gap"}
+.a-hz{grid-area:hz}.a-pipe{grid-area:pipe}.a-hot{grid-area:hot}.a-fu{grid-area:fu}.a-gap{grid-area:gap}
+.pn2{padding:14px 16px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pn2>.scrollin{flex:1 1 auto}
 .ph2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
 .ph2 h2{margin:0;font-size:15px}
 .scrollin{min-height:0;overflow:auto}
-.horizon2{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 1.7fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:200px}
+.horizon2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) 1.7fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:200px}
 .horizon2 .hz{min-height:0;padding:28px 12px 10px}
 .horizon2 .hz .bar{flex:0 0 auto}
 .hz.unkbox{background:var(--amber-l);justify-content:center;gap:4px;border-right:none}
@@ -180,12 +181,14 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 .mbar i.bad{background:var(--red)}
 @media (min-width:1100px) and (min-height:720px){
   .dash{height:calc(100vh - 44px)}
-  .dgrid2{flex:1;min-height:0}
-  .dleft>.pn2:first-child{flex:0 0 auto}
-  .dpair{flex:1}
-  .dright>.pn2:first-child{flex:1}
+  .dgrid2{flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr) auto}
 }
-@media (max-width:1100px){ .kpis5{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))} .dgrid2,.dpair{grid-template-columns:1fr} .horizon2{grid-template-columns:repeat(3,minmax(0,1fr));height:auto} .horizon2 .hz{min-height:130px} .horizon2 .unkbox{grid-column:1/-1} }
+@media (min-width:1100px) and (max-height:840px){
+  .horizon2{height:150px} .horizon2 .hz{padding-top:24px} .horizon2{--bh:40px}
+  .kpis5 .kpi{padding:8px 14px} .kpis5 .kpi b{font-size:24px}
+  .brow{padding:1px 4px} .pn2{padding:12px 14px}
+}
+@media (max-width:1100px){ .kpis5{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))} .dgrid2{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"hz" "fu" "hot" "pipe" "gap"} .a-fu .scrollin,.a-hot .scrollin{max-height:420px} .horizon2{grid-template-columns:repeat(3,minmax(0,1fr));height:auto} .horizon2 .hz{min-height:130px} .horizon2 .unkbox{grid-column:1/-1} }
 /* list */
 .lay{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
 .filters{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;display:flex;flex-direction:column;gap:16px}
@@ -239,6 +242,8 @@ dl{margin:0}
 /* form */
 .fsec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:16px;scroll-margin-top:16px}
 .fsec h2{margin:0;font-size:17px}
+.fg3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 18px}
+@media (max-width:700px){.fg3{grid-template-columns:1fr}}
 .fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 18px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button{min-height:40px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px}
@@ -581,7 +586,7 @@ function vDashboard() {
   cols.push({ y: (y0 + 4) + '+', later: true, v: '>' + (y0 + 3), n: P.filter(p => yr(p) && yr(p) > String(y0 + 3)).length, cls: '' });
   const older = P.filter(p => yr(p) && yr(p) < years[0]).length, unk = P.filter(p => !p.Lease_Expiry).length;
   const maxH = Math.max(1, ...cols.map(c => c.n));
-  const hz = cols.map(c => `<button class="hz ${c.cls}" data-act="${c.later ? 'goExpLater' : 'goExpYear'}" data-v="${c.v}" aria-label="หมดสัญญาปี ${c.y} ${c.n} ราย"><b>${c.n}</b><div class="bar" style="height:${Math.max(3, Math.round(c.n / maxH * 96))}px"></div><span>${c.y}</span></button>`).join('')
+  const hz = cols.map(c => `<button class="hz ${c.cls}" data-act="${c.later ? 'goExpLater' : 'goExpYear'}" data-v="${c.v}" aria-label="หมดสัญญาปี ${c.y} ${c.n} ราย"><b>${c.n}</b><div class="bar" style="height:max(3px, calc(var(--bh, 80px) * ${(c.n / maxH).toFixed(3)}))"></div><span>${c.y}</span></button>`).join('')
     + `<button class="hz unkbox" data-act="goExpYear" data-v="__none"><b>${unk}</b><strong>ยังไม่ทราบวันหมดสัญญา</strong><span>${P.length ? Math.round(unk / P.length * 100) : 0}% ของทั้งหมด · กดเพื่อดูรายชื่อที่ต้องถามลูกค้า</span></button>`;
   // pipeline
   const stMax = Math.max(1, ...STATUSES.map(s => P.filter(p => p.Pipeline_Status === s).length));
@@ -617,17 +622,11 @@ function vDashboard() {
     ${kpi(P.filter(p => num(p.WP_Fit_Score) >= 25).length, 'Fit Score ≥ 25 (แนะนำ BTE)', 'goFit25')}
   </div>
   <div class="dgrid2">
-    <div class="dleft">
-      <section class="panel pn2"><div class="ph2"><h2>สัญญาเช่าปัจจุบันจะหมดเมื่อไร</h2><span class="hint">กดที่ปีเพื่อดูรายชื่อ${older ? ` · ${older} รายหมดก่อนปี ${years[0]}` : ''}</span></div><div class="horizon2">${hz}</div></section>
-      <div class="dpair">
-        <section class="panel pn2"><div class="ph2"><h2>Pipeline ตามสถานะ</h2></div><div class="bars">${pipe}</div></section>
-        <section class="panel pn2"><div class="ph2"><h2>โอกาสที่ควรตามก่อน</h2><button class="linkbtn" data-act="goHot">ดูทั้งหมด</button></div><div class="scrollin">${hotHTML}</div></section>
-      </div>
-    </div>
-    <div class="dright">
-      <section class="panel pn2"><div class="ph2"><h2>Follow-up ที่ต้องทำ ${pend.length ? `<span class="hint">(${pend.length})</span>` : ''}</h2><a class="linkbtn" href="#/alerts">ดูทั้งหมด</a></div><div class="scrollin">${fuHTML}</div></section>
-      <section class="panel pn2"><div class="ph2"><h2>ข้อมูลที่ยังขาด</h2><span class="hint">% ที่กรอกแล้ว</span></div><div class="grid" style="gap:8px">${gapHTML}</div></section>
-    </div>
+      <section class="panel pn2 a-hz"><div class="ph2"><h2>สัญญาเช่าปัจจุบันจะหมดเมื่อไร</h2><span class="hint">กดที่ปีเพื่อดูรายชื่อ${older ? ` · ${older} รายหมดก่อนปี ${years[0]}` : ''}</span></div><div class="horizon2">${hz}</div></section>
+      <section class="panel pn2 a-pipe"><div class="ph2"><h2>Pipeline ตามสถานะ</h2></div><div class="bars scrollin">${pipe}</div></section>
+      <section class="panel pn2 a-hot"><div class="ph2"><h2>โอกาสที่ควรตามก่อน</h2><button class="linkbtn" data-act="goHot">ดูทั้งหมด</button></div><div class="scrollin">${hotHTML}</div></section>
+      <section class="panel pn2 a-fu"><div class="ph2"><h2>Follow-up ที่ต้องทำ ${pend.length ? `<span class="hint">(${pend.length})</span>` : ''}</h2><a class="linkbtn" href="#/alerts">ดูทั้งหมด</a></div><div class="scrollin">${fuHTML}</div></section>
+      <section class="panel pn2 a-gap"><div class="ph2"><h2>ข้อมูลที่ยังขาด</h2><span class="hint">% ที่กรอกแล้ว</span></div><div class="grid" style="gap:8px">${gapHTML}</div></section>
   </div></div>`);
   $('#main').classList.add('dashpad');
 }
@@ -882,8 +881,8 @@ function vForm(cid) {
 function contactHTML(c) {
   const roles = lists('Role_in_Deal');
   return `<div class="rowcard" data-row="contact" data-id="${esc(c.Contact_ID || '')}"><div class="rh"><span>ผู้ติดต่อ</span><span style="display:flex;gap:8px;align-items:center"><label class="chk" style="min-height:auto"><input type="radio" name="primary" ${c.Is_Primary === 'Yes' ? 'checked' : ''}> หลัก</label><button type="button" class="btn ghost sm" data-act="delRow" aria-label="ลบผู้ติดต่อ">${ic('x').replace('<svg', '<svg width="16" height="16"')}</button></span></div>
-  <div class="fg"><label class="f">ชื่อ <span class="req">*</span><input class="in" data-k="Name" value="${esc(c.Name || '')}"></label><label class="f">ตำแหน่ง<input class="in" data-k="Position" value="${esc(c.Position || '')}"></label><label class="f">บทบาทในดีล<select class="in" data-k="Role_in_Deal"><option value="">—</option>${roles.map(r => `<option ${r === c.Role_in_Deal ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label></div>
-  <div class="fg"><label class="f">อีเมล<input class="in" data-k="Email" type="email" value="${esc(c.Email || '')}"></label><label class="f">โทรศัพท์<input class="in" data-k="Phone" type="tel" value="${esc(c.Phone || '')}"></label></div></div>`;
+  <div class="fg3"><label class="f">ชื่อ <span class="req">*</span><input class="in" data-k="Name" value="${esc(c.Name || '')}"></label><label class="f">ตำแหน่ง<input class="in" data-k="Position" value="${esc(c.Position || '')}"></label><label class="f">บทบาทในดีล<select class="in" data-k="Role_in_Deal"><option value="">—</option>${roles.map(r => `<option ${r === c.Role_in_Deal ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
+  <label class="f">อีเมล<input class="in" data-k="Email" type="email" value="${esc(c.Email || '')}"></label><label class="f">โทรศัพท์<input class="in" data-k="Phone" type="tel" value="${esc(c.Phone || '')}"></label></div></div>`;
 }
 function finHTML(r) {
   const f = (k, l) => `<label class="f">${l}<input class="in" data-k="${k}" inputmode="decimal" value="${esc(r[k] ?? '')}"></label>`;
