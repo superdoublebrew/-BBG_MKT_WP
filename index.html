@@ -127,6 +127,65 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 .fu .m{color:var(--muted);font-size:13px}
 .type{font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--muted)}
 .type.Auto{background:var(--navy-l);color:var(--navy)}
+.dashpad{padding:20px 24px 24px}
+.dash{display:flex;flex-direction:column;gap:14px}
+.dhd{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.dhd h1{margin:0;font-size:22px;line-height:1.2}
+.seg2{display:flex;gap:2px;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:9px;flex-wrap:wrap}
+.seg2 button{border:none;background:transparent;font-size:13.5px;min-height:34px;padding:0 12px;border-radius:6px;cursor:pointer;color:var(--ink)}
+.seg2 button[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:600}
+:root[data-theme="dark"] .seg2 button[aria-pressed="true"]{color:#0F1A24}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .seg2 button[aria-pressed="true"]{color:#0F1A24} }
+.kpis5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.kpis5 .kpi{padding:12px 16px}
+.kpis5 .kpi b{font-size:28px}
+.kpis5 .kpi b small{font-size:14px;font-weight:600;color:var(--muted)}
+.kpi.warn{background:var(--red-l);border-color:var(--red)}
+.dgrid2{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:14px}
+.dleft,.dright{display:flex;flex-direction:column;gap:14px;min-height:0}
+.dpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-height:0}
+.pn2{padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.ph2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+.ph2 h2{margin:0;font-size:15px}
+.scrollin{min-height:0;overflow:auto}
+.horizon2{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 1.7fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:200px}
+.horizon2 .hz{min-height:0;padding:28px 12px 10px}
+.horizon2 .hz .bar{flex:0 0 auto}
+.hz.unkbox{background:var(--amber-l);justify-content:center;gap:4px;border-right:none}
+.hz.unkbox b{color:var(--amber);font-size:28px}
+.hz.unkbox strong{color:var(--amber);font-size:13.5px}
+.hz.unkbox span{color:var(--amber);font-size:12.5px;opacity:.85}
+.brow i.won{background:var(--green)}
+.brow i.lost{background:var(--muted)}
+.hot{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:8px 0;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink)}
+.hot:last-child{border-bottom:none}
+.hot .nm{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hot .sc{grid-row:span 2;align-self:center;font-size:20px;font-weight:700;color:var(--navy);text-align:right;line-height:1}
+.hot .sc small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tg{font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--muted)}
+.tg.u{background:var(--amber-l);color:var(--amber)}
+.tg.b{background:var(--navy-l);color:var(--navy)}
+.fu2{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.fu2:last-child{border-bottom:none}
+.fu2 .d{font-weight:600}
+.fu2 .n{display:block;text-decoration:none;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fu2 .m{display:block;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:120px minmax(0,1fr) 42px;align-items:center;gap:10px;font-size:13.5px;padding:3px 4px;border-radius:6px}
+.mt:hover{background:var(--sunk)}
+.mt b{text-align:right}
+.mbar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.mbar i{display:block;height:100%;background:var(--navy)}
+.mbar i.mid{background:var(--amber)}
+.mbar i.bad{background:var(--red)}
+@media (min-width:1100px) and (min-height:720px){
+  .dash{height:calc(100vh - 44px)}
+  .dgrid2{flex:1;min-height:0}
+  .dleft>.pn2:first-child{flex:0 0 auto}
+  .dpair{flex:1}
+  .dright>.pn2:first-child{flex:1}
+}
+@media (max-width:1100px){ .kpis5{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))} .dgrid2,.dpair{grid-template-columns:1fr} .horizon2{grid-template-columns:repeat(3,minmax(0,1fr));height:auto} .horizon2 .hz{min-height:130px} .horizon2 .unkbox{grid-column:1/-1} }
 /* list */
 .lay{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
 .filters{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;display:flex;flex-direction:column;gap:16px}
@@ -227,7 +286,7 @@ const CLIENT_ID = '';  // Google OAuth Client ID
 /* ==================================================================== */
 
 const DEMO = !API_URL && typeof window.DEMO_DATA !== 'undefined';
-const S = { data: null, user: null, token: null, filters: null, sort: { k: 'Company_Name', d: 1 }, alertTab: 'overdue', alertScope: 'mine', ix: {} };
+const S = { dashOwner: null, data: null, user: null, token: null, filters: null, sort: { k: 'Company_Name', d: 1 }, alertTab: 'overdue', alertScope: 'mine', ix: {} };
 const STATUSES = ['Sale Blitz', 'Prospected', 'Inspected', 'Follow-Up', 'Negotiation', 'Closed Deal', 'Lost'];
 const CLOSED = ['Lost', 'Closed Deal'];
 const TABLE = { Prospects: ['prospects', 'Company_ID', 'C'], Contacts: ['contacts', 'Contact_ID', 'P'], Financials: ['financials', 'Fin_ID', 'F'], Actions: ['actions', 'Action_ID', 'A'], Activity_Log: ['logs', 'Log_ID', 'L'] };
@@ -296,8 +355,10 @@ const nextFU = cid => pendingOf(cid)[0];
 const isMine = a => !S.user.owner || a === S.user.owner;
 
 async function api(action, payload) {
-  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: S.token, payload }) });
-  const j = await r.json();
+  let r;
+  try { r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: S.token, payload }) }); } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+  let j;
+  try { j = await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด)'); }
   if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(j.error); }
   return j;
 }
@@ -491,58 +552,84 @@ function shell(page, html) {
     `<a href="#/${k}" ${page === k ? 'aria-current="page"' : ''}>${ic(i)}<span>${l}</span>${k === 'alerts' && od ? `<span class="badge" aria-label="เลยกำหนด ${od} รายการ">${od}</span>` : ''}</a>`).join('');
   const who = DEMO
     ? `<label class="f" style="font-weight:400">ดูในฐานะ<select class="in" data-change="asUser">${S.data.config.users.map(u => `<option ${u.Name === S.user.name ? 'selected' : ''}>${esc(u.Name)}</option>`).join('')}<option ${S.user.role === 'Admin' ? 'selected' : ''}>Admin</option></select></label><div class="demo">โหมดเดโม: ข้อมูลที่แก้จะไม่ถูกบันทึกจริง รีเฟรชแล้วกลับเป็นค่าเดิม</div>`
-    : `<div>${esc(S.user.name)} <span class="muted">(${esc(S.user.role)})</span></div><button class="btn sm" data-act="signout">ออกจากระบบ</button>`;
+    : `<div>${esc(S.user.name)} <span class="muted">(${esc(S.user.role)})</span></div>${CLIENT_ID ? '<button class="btn sm" data-act="signout">ออกจากระบบ</button>' : ''}`;
   $('#root').innerHTML = `<div class="app"><aside class="side"><div class="brand">Prospect Tenant<small>Workplace Marketing</small></div><nav class="nav" aria-label="เมนูหลัก">${nav}</nav><div class="side-foot">${who}</div></aside><main class="main" id="main">${html}</main></div>`;
 }
 
 /* ---------------- dashboard ---------------- */
+function hotScore(p) {
+  const fit = num(p.WP_Fit_Score) || 0, t = todayISO();
+  let u = 0;
+  if (p.Lease_Expiry && p.Lease_Expiry >= t) u = p.Lease_Expiry <= addMonths(t, 12) ? 12 : p.Lease_Expiry <= addMonths(t, 24) ? 8 : p.Lease_Expiry <= addMonths(t, 36) ? 4 : 0;
+  return fit + u;
+}
 function vDashboard() {
-  const P = S.data.prospects, t = todayISO(), y0 = new Date().getFullYear();
+  if (S.dashOwner == null) S.dashOwner = S.user.owner || '';
+  const own = S.dashOwner || '', t = todayISO(), y0 = new Date().getFullYear();
+  const P = S.data.prospects.filter(p => !own || p.Sales_Owner === own);
   const active = P.filter(p => !CLOSED.includes(p.Pipeline_Status));
-  const pend = S.data.actions.filter(a => a.Status === 'Pending');
-  const od = pend.filter(a => a.Due_Date < t), soon = pend.filter(a => a.Due_Date >= t && a.Due_Date <= addDays(t, 30));
+  const pend = S.data.actions.filter(a => a.Status === 'Pending' && (!own || a.Assigned_To === own)).sort((a, b) => a.Due_Date < b.Due_Date ? -1 : 1);
+  const od = pend.filter(a => a.Due_Date < t);
   const exp12 = P.filter(p => p.Lease_Expiry && p.Lease_Expiry >= t && p.Lease_Expiry <= addMonths(t, 12));
-  const kpi = (n, l, act, warn) => `<button class="kpi ${warn && n ? 'warn' : ''}" data-act="${act}"><b>${n}</b><span>${l}</span></button>`;
+  const areaOf = p => num(p.Required_Area_Min) ?? num(p.Current_Area_sqm);
+  const withArea = active.filter(p => areaOf(p) != null), sqm = withArea.reduce((s, p) => s + areaOf(p), 0);
+  const kpi = (n, l, act, cls = '') => `<button class="kpi ${cls}" data-act="${act}"><b>${n}</b><span>${l}</span></button>`;
   // horizon
-  const years = []; for (let y = y0 - 1; y <= y0 + 4; y++) years.push(String(y));
-  const cnt = y => P.filter(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4) === y).length;
-  const older = P.filter(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4) < years[0]).length;
-  const later = P.filter(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4) > years[years.length - 1]).length;
-  const unk = P.filter(p => !p.Lease_Expiry).length;
-  const cols = years.map(y => ({ y, n: cnt(y), cls: y < String(y0) ? 'past' : y === String(y0) ? 'now' : '' }));
-  if (later) cols.push({ y: '>' + years[years.length - 1], n: later, cls: '', later: true });
+  const years = []; for (let y = y0 - 1; y <= y0 + 3; y++) years.push(String(y));
+  const yr = p => p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : null;
+  const cols = years.map(y => ({ y, v: y, n: P.filter(p => yr(p) === y).length, cls: y < String(y0) ? 'past' : y === String(y0) ? 'now' : '' }));
+  cols.push({ y: (y0 + 4) + '+', later: true, v: '>' + (y0 + 3), n: P.filter(p => yr(p) && yr(p) > String(y0 + 3)).length, cls: '' });
+  const older = P.filter(p => yr(p) && yr(p) < years[0]).length, unk = P.filter(p => !p.Lease_Expiry).length;
   const maxH = Math.max(1, ...cols.map(c => c.n));
-  const hz = cols.map(c => `<button class="hz ${c.cls}" data-act="${c.later ? 'goExpLater' : 'goExpYear'}" data-v="${c.y}" aria-label="หมดสัญญาปี ${c.y} ${c.n} ราย"><b>${c.n}</b><div class="bar" style="height:${Math.round(c.n / maxH * 90)}px"></div><span>${c.y}</span></button>`).join('')
-    + `<button class="hz unk" data-act="goExpYear" data-v="__none" aria-label="ยังไม่ทราบวันหมดสัญญา ${unk} ราย"><b>${unk}</b><div class="bar" style="height:${Math.round(Math.min(unk, maxH * 1.4) / (maxH * 1.4) * 90)}px"></div><span>ยังไม่ทราบ</span></button>`;
-  const barList = (items, act) => { const m = Math.max(1, ...items.map(i => i[1])); return `<div class="bars">${items.map(([k, n, lab]) => `<button class="brow" data-act="${act}" data-v="${esc(k)}"><span>${esc(lab || k)}</span><i style="width:${n / m * 100}%"></i><em>${n}</em></button>`).join('')}</div>`; };
-  const by = (arr, f) => { const m = {}; arr.forEach(p => { const k = f(p); if (k) m[k] = (m[k] || 0) + 1; }); return m; };
-  const st = STATUSES.map(s => [s, P.filter(p => p.Pipeline_Status === s).length]);
-  const own = Object.entries(by(active, p => p.Sales_Owner)).sort((a, b) => b[1] - a[1]);
-  const bld = lists('Building').map(b => [b, P.filter(p => p.Target_Building_1 === b || p.Target_Building_2 === b).length]);
-  const zn = Object.entries(by(P, p => p.Current_Zone)).sort((a, b) => b[1] - a[1]);
-  const pct = f => Math.round(P.filter(f).length / P.length * 100);
-  const comp = [['วันหมดสัญญา', pct(p => p.Lease_Expiry)], ['พื้นที่เช่าปัจจุบัน', pct(p => p.Current_Area_sqm != null)], ['โซน', pct(p => p.Current_Zone)], ['พื้นที่ที่ต้องการ', pct(p => p.Required_Area_Min != null)], ['WP Fit Score', pct(p => p.WP_Fit_Score != null)], ['อีเมลผู้ติดต่อ', pct(p => (S.ix.contacts[p.Company_ID] || []).some(c => c.Email))]];
-  const myFU = pend.filter(a => isMine(a.Assigned_To) && a.Due_Date <= addDays(t, 30)).sort((a, b) => a.Due_Date < b.Due_Date ? -1 : 1).slice(0, 8);
-  const d = new Date();
-  shell('dashboard', `
-  <div class="topline"><div style="flex:1"><h1>ภาพรวม Prospect</h1><div class="sub">ข้อมูล ณ ${fmtD(t)} · ${P.length} บริษัท</div></div><a class="btn pri" href="#/new">${ic('plus').replace('<svg', '<svg width="18" height="18"')}เพิ่ม Prospect</a></div>
-  <div class="kpis">
-    ${kpi(active.length, 'กำลังดำเนินการ', 'goActive')}
-    ${kpi(od.length, 'Follow-up เลยกำหนด', 'goAlertsOverdue', true)}
-    ${kpi(soon.length, 'Follow-up ใน 30 วัน', 'goAlertsSoon')}
+  const hz = cols.map(c => `<button class="hz ${c.cls}" data-act="${c.later ? 'goExpLater' : 'goExpYear'}" data-v="${c.v}" aria-label="หมดสัญญาปี ${c.y} ${c.n} ราย"><b>${c.n}</b><div class="bar" style="height:${Math.max(3, Math.round(c.n / maxH * 96))}px"></div><span>${c.y}</span></button>`).join('')
+    + `<button class="hz unkbox" data-act="goExpYear" data-v="__none"><b>${unk}</b><strong>ยังไม่ทราบวันหมดสัญญา</strong><span>${P.length ? Math.round(unk / P.length * 100) : 0}% ของทั้งหมด · กดเพื่อดูรายชื่อที่ต้องถามลูกค้า</span></button>`;
+  // pipeline
+  const stMax = Math.max(1, ...STATUSES.map(s => P.filter(p => p.Pipeline_Status === s).length));
+  const pipe = STATUSES.map(s => { const n = P.filter(p => p.Pipeline_Status === s).length; return `<button class="brow" data-act="goStatus" data-v="${s}"><span>${s}</span><i class="${s === 'Closed Deal' ? 'won' : s === 'Lost' ? 'lost' : ''}" style="width:${n / stMax * 100}%"></i><em>${n}</em></button>`; }).join('');
+  // hot list
+  const hot = active.map(p => [hotScore(p), p]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).slice(0, 5).map(([, p]) => p);
+  const hotHTML = hot.length ? hot.map(p => {
+    const tags = [];
+    if (p.Lease_Expiry && p.Lease_Expiry >= t) tags.push(`<span class="tg u">หมดสัญญา ${esc(fmtExpiry(p).replace(' (รู้แค่ปี)', ''))}</span>`);
+    else if (areaOf(p) != null) tags.push(`<span class="tg">${fmtN(areaOf(p))} sqm</span>`);
+    if (p.Recommended_Building) tags.push(`<span class="tg b">แนะนำ ${esc(p.Recommended_Building)}</span>`);
+    if (!own) tags.push(`<span class="tg">${esc(p.Sales_Owner || '-')}</span>`); else tags.push(`<span class="tg">${esc(p.Pipeline_Status)}</span>`);
+    return `<a class="hot" href="#/p/${p.Company_ID}"><span class="nm">${esc(p.Company_Name)}</span><span class="sc">${p.WP_Fit_Score ?? '–'}<small>Fit</small></span><span class="tags">${tags.join('')}</span></a>`;
+  }).join('') : '<div class="empty" style="padding:16px">ยังไม่มีดีลที่มี Fit Score หรือวันหมดสัญญา</div>';
+  // follow-ups
+  const fuHTML = pend.length ? pend.slice(0, 30).map(a => { const p = S.ix.p[a.Company_ID] || {}, late = a.Due_Date < t; return `<div class="fu2"><span class="d ${late ? 'late' : ''}">${fmtD(a.Due_Date)}</span><span style="min-width:0"><a class="n" href="#/p/${a.Company_ID}">${esc(p.Company_Name || a.Company_ID)}</a><span class="m">${own ? '' : esc(a.Assigned_To || '') + ' · '}${esc(a.Message)}</span></span></div>`; }).join('') : '<div class="empty" style="padding:16px">ไม่มี follow-up ค้าง</div>';
+  // data gaps
+  const pct = f => P.length ? Math.round(P.filter(f).length / P.length * 100) : 0;
+  const gaps = [['วันหมดสัญญา', 'Lease_Expiry', pct(p => p.Lease_Expiry)], ['พื้นที่ปัจจุบัน', 'Current_Area_sqm', pct(p => p.Current_Area_sqm != null)], ['พื้นที่ที่ต้องการ', 'Required_Area_Min', pct(p => p.Required_Area_Min != null)], ['WP Fit Score', 'WP_Fit_Score', pct(p => p.WP_Fit_Score != null)]];
+  const gapHTML = gaps.map(([l, f, v]) => `<button class="mt" data-act="goGap" data-v="${f}"><span>${l}</span><span class="mbar"><i class="${v < 10 ? 'bad' : v < 50 ? 'mid' : ''}" style="width:${v}%"></i></span><b class="${v < 10 ? 'late' : ''}">${v}%</b></button>`).join('');
+  const owners = lists('Sales_Owner');
+  shell('dashboard', `<div class="dash">
+  <div class="dhd">
+    <div><h1>ภาพรวม Prospect</h1><div class="sub">ข้อมูล ณ ${fmtD(t)} · ${P.length} บริษัท</div></div>
+    <div class="seg2" role="group" aria-label="ดูข้อมูลของ"><button type="button" data-act="dashOwner" data-v="" aria-pressed="${!own}">ทั้งทีม</button>${owners.map(o => `<button type="button" data-act="dashOwner" data-v="${esc(o)}" aria-pressed="${own === o}">${esc(o)}</button>`).join('')}</div>
+    <a class="btn pri" href="#/new" style="margin-left:auto">+ เพิ่ม Prospect</a>
+  </div>
+  <div class="kpis5">
+    ${kpi(active.length, 'ดีลที่กำลังดำเนินการ', 'goActive')}
+    ${kpi(`${fmtN(sqm)}<small> sqm</small>`, `พื้นที่ใน Pipeline · มีข้อมูล ${withArea.length} ราย`, 'goSqm')}
+    ${kpi(od.length, 'Follow-up เลยกำหนด', 'goAlertsOverdue', od.length ? 'warn' : '')}
     ${kpi(exp12.length, 'หมดสัญญาใน 12 เดือน', 'goExp12')}
     ${kpi(P.filter(p => num(p.WP_Fit_Score) >= 25).length, 'Fit Score ≥ 25 (แนะนำ BTE)', 'goFit25')}
   </div>
-  <section class="panel" aria-labelledby="hz-h"><h2 id="hz-h">สัญญาเช่าปัจจุบันจะหมดเมื่อไร</h2><div class="horizon" style="--n:${cols.length + 1}">${hz}</div>
-  <p class="hint" style="margin:10px 0 0">กดที่ปีเพื่อดูรายชื่อ${older ? ` · มี ${older} รายหมดก่อนปี ${years[0]}` : ''}</p></section>
-  <div class="dgrid">
-    <section class="panel"><h2>Pipeline ตามสถานะ</h2>${barList(st, 'goStatus')}</section>
-    <section class="panel"><h2>Follow-up ของ${S.user.owner ? 'ฉัน' : 'ทีม'} (30 วัน)</h2>${myFU.length ? myFU.map(fuRow).join('') : '<div class="empty" style="padding:20px">ไม่มีรายการที่ต้องตามใน 30 วัน</div>'}<a class="btn sm" href="#/alerts" style="margin-top:10px">ดูทั้งหมด</a></section>
-    <section class="panel"><h2>ดีลที่กำลังดำเนินการ ตาม Sales Owner</h2>${barList(own, 'goOwner')}</section>
-    <section class="panel"><h2>อาคารเป้าหมาย</h2>${barList(bld, 'goBuilding')}</section>
-    <section class="panel"><h2>โซนปัจจุบันของลูกค้า</h2>${barList(zn, 'goZone')}</section>
-    <section class="panel"><h2>ความครบถ้วนของข้อมูล</h2><div class="grid" style="gap:12px">${comp.map(([l, v]) => `<div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${l}</span><b>${v}%</b></div><div class="meter"><i style="width:${v}%"></i></div></div>`).join('')}</div><p class="hint" style="margin:12px 0 0">ช่องที่ยังขาดมากจะทำให้ค้นหาและแจ้งเตือนได้ไม่ครบ</p></section>
-  </div>`);
+  <div class="dgrid2">
+    <div class="dleft">
+      <section class="panel pn2"><div class="ph2"><h2>สัญญาเช่าปัจจุบันจะหมดเมื่อไร</h2><span class="hint">กดที่ปีเพื่อดูรายชื่อ${older ? ` · ${older} รายหมดก่อนปี ${years[0]}` : ''}</span></div><div class="horizon2">${hz}</div></section>
+      <div class="dpair">
+        <section class="panel pn2"><div class="ph2"><h2>Pipeline ตามสถานะ</h2></div><div class="bars">${pipe}</div></section>
+        <section class="panel pn2"><div class="ph2"><h2>โอกาสที่ควรตามก่อน</h2><button class="linkbtn" data-act="goHot">ดูทั้งหมด</button></div><div class="scrollin">${hotHTML}</div></section>
+      </div>
+    </div>
+    <div class="dright">
+      <section class="panel pn2"><div class="ph2"><h2>Follow-up ที่ต้องทำ ${pend.length ? `<span class="hint">(${pend.length})</span>` : ''}</h2><a class="linkbtn" href="#/alerts">ดูทั้งหมด</a></div><div class="scrollin">${fuHTML}</div></section>
+      <section class="panel pn2"><div class="ph2"><h2>ข้อมูลที่ยังขาด</h2><span class="hint">% ที่กรอกแล้ว</span></div><div class="grid" style="gap:8px">${gapHTML}</div></section>
+    </div>
+  </div></div>`);
+  $('#main').classList.add('dashpad');
 }
 function fuRow(a) {
   const p = S.ix.p[a.Company_ID] || {}, late = a.Due_Date < todayISO();
@@ -661,7 +748,7 @@ function vDetail(cid) {
 /* ---------------- dialogs ---------------- */
 function openDlg(html, onSubmit) {
   const d = $('#dlg'); d.innerHTML = `<form class="dlg" method="dialog">${html}<div class="errbox hidden" id="dlgErr"></div><div class="dlg-foot"><button type="button" class="btn" data-act="closeDlg">ยกเลิก</button><button class="btn pri" value="ok">บันทึก</button></div></form>`;
-  d.querySelector('form').onsubmit = async e => { e.preventDefault(); try { const r = await onSubmit(new FormData(e.target)); if (r !== false) d.close(); } catch (err) { const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); } };
+  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'); if (sb.disabled) return; sb.disabled = true; sb.textContent = 'กำลังบันทึก…'; try { const r = await onSubmit(new FormData(e.target)); if (r !== false) d.close(); } catch (err) { const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; sb.textContent = 'บันทึก'; } };
   d.showModal(); const first = d.querySelector('input,select,textarea'); if (first) first.focus();
 }
 function dlgStatus(cid) {
@@ -675,7 +762,7 @@ function dlgStatus(cid) {
       const st = fd.get('st'), lost = (fd.get('lost') || '').trim(), note = (fd.get('note') || '').trim();
       if (st === p.Pipeline_Status && !note) throw new Error('สถานะเหมือนเดิม');
       if (st === 'Lost' && !lost) throw new Error('กรุณาระบุเหตุผลที่ Lost');
-      const ops = [{ sheet: 'Prospects', op: 'update', row: { Company_ID: cid, Pipeline_Status: st, Lost_Reason: st === 'Lost' ? lost : p.Lost_Reason } },
+      const ops = [{ sheet: 'Prospects', op: 'update', expect: p.Updated_At, row: { Company_ID: cid, Pipeline_Status: st, Lost_Reason: st === 'Lost' ? lost : p.Lost_Reason } },
         { sheet: 'Activity_Log', op: 'insert', row: { Log_ID: '$l', Company_ID: cid, Log_Type: 'Status Change', From_Status: p.Pipeline_Status, To_Status: st, Detail: [st === 'Lost' ? 'เหตุผล: ' + lost : '', note].filter(Boolean).join(' · ') } },
         ...statusSideOps(cid, st)];
       if (p.Pipeline_Status === 'Lost' && st !== 'Lost') ops.push(...autoAlertOps({ ...p, Pipeline_Status: st }, S.ix.actions[cid]));
@@ -855,7 +942,7 @@ async function saveForm(form) {
   applyFit(p);
   const id = cid || '$C'; p.Company_ID = id;
   const row = {}; Object.keys(LABEL).concat(['Score_Location', 'Score_Budget', 'Score_Industry', 'Score_Talent', 'Score_Brand', 'Score_Growth', 'Score_Bonus', 'Bonus_Ecosystem', 'Bonus_Referral', 'Expiry_Precision', 'Lost_Reason']).forEach(k => { if (!['Created_At', 'Updated_At', 'Created_By', 'Updated_By'].includes(k)) row[k] = p[k] ?? null; });
-  const ops = [{ sheet: 'Prospects', op: cid ? 'update' : 'insert', row }];
+  const ops = [{ sheet: 'Prospects', op: cid ? 'update' : 'insert', row, expect: cid ? ex.Updated_At : undefined }];
   const exC = cid ? (S.ix.contacts[cid] || []) : [];
   contacts.filter(c => c.Name || c.Email).forEach((c, i) => ops.push(c.Contact_ID ? { sheet: 'Contacts', op: 'update', row: c } : { sheet: 'Contacts', op: 'insert', row: { ...c, Contact_ID: '$p' + i, Company_ID: id } }));
   exC.filter(c => !contacts.some(x => x.Contact_ID === c.Contact_ID)).forEach(c => ops.push({ sheet: 'Contacts', op: 'delete', row: { Contact_ID: c.Contact_ID } }));
@@ -906,14 +993,18 @@ function route() {
   if (!['list'].includes(pg)) window.scrollTo(0, 0);
 }
 const ACT = {
-  goActive: () => goList({ status: STATUSES.filter(s => !CLOSED.includes(s)) }),
+  goActive: () => goList({ status: STATUSES.filter(s => !CLOSED.includes(s)), owner: S.dashOwner ? [S.dashOwner] : [] }),
   goAlertsOverdue: () => { S.alertTab = 'overdue'; S.alertScope = 'all'; location.hash = '#/alerts'; },
   goAlertsSoon: () => { S.alertTab = 'month'; S.alertScope = 'all'; location.hash = '#/alerts'; },
-  goExp12: () => goList({ expWithin: '12' }),
-  goFit25: () => goList({ fitMin: '25' }),
-  goExpYear: el => goList({ expYear: [el.dataset.v] }),
-  goExpLater: el => goList({ conds: [{ field: 'Lease_Expiry', op: 'after', value: el.dataset.v.slice(1) + '-12-31' }] }),
-  goStatus: el => goList({ status: [el.dataset.v] }), goOwner: el => goList({ owner: [el.dataset.v], status: STATUSES.filter(s => !CLOSED.includes(s)) }),
+  goExp12: () => goList({ expWithin: '12', owner: S.dashOwner ? [S.dashOwner] : [] }),
+  dashOwner: el => { S.dashOwner = el.dataset.v; vDashboard(); },
+  goSqm: () => goList({ status: STATUSES.filter(s => !CLOSED.includes(s)), owner: S.dashOwner ? [S.dashOwner] : [], conds: [{ field: 'Required_Area_Min', op: 'filled', value: '' }] }),
+  goHot: () => { S.sort = { k: 'WP_Fit_Score', d: -1 }; goList({ status: STATUSES.filter(s => !CLOSED.includes(s)), owner: S.dashOwner ? [S.dashOwner] : [] }); },
+  goGap: el => goList({ status: STATUSES.filter(s => !CLOSED.includes(s)), owner: S.dashOwner ? [S.dashOwner] : [], conds: [{ field: el.dataset.v, op: 'empty', value: '' }] }),
+  goFit25: () => goList({ fitMin: '25', owner: S.dashOwner ? [S.dashOwner] : [] }),
+  goExpYear: el => goList({ expYear: [el.dataset.v], owner: S.dashOwner ? [S.dashOwner] : [] }),
+  goExpLater: el => goList({ owner: S.dashOwner ? [S.dashOwner] : [], conds: [{ field: 'Lease_Expiry', op: 'after', value: el.dataset.v.slice(1) + '-12-31' }] }),
+  goStatus: el => goList({ status: [el.dataset.v], owner: S.dashOwner ? [S.dashOwner] : [] }), goOwner: el => goList({ owner: [el.dataset.v], status: STATUSES.filter(s => !CLOSED.includes(s)) }),
   goBuilding: el => goList({ building: [el.dataset.v] }), goZone: el => goList({ zone: [el.dataset.v] }),
   fchip: el => { const k = el.dataset.k, v = el.dataset.v, a = S.filters[k]; const i = a.indexOf(v); i >= 0 ? a.splice(i, 1) : a.push(v); el.setAttribute('aria-pressed', i < 0); renderResults(); },
   clearF: () => { S.filters = blankFilters(); vList(); },
@@ -958,7 +1049,7 @@ document.addEventListener('change', e => {
   if (c === 'field' || c === 'op') { const cd = S.filters.conds[+e.target.closest('.cond').dataset.i]; cd[c] = e.target.value; if (c === 'field') { cd.op = OPS[fieldType(cd.field)][0][0]; cd.value = ''; } vList(); return; }
   if (e.target.dataset.f === 'expWithin') return;
   const ch = e.target.dataset.change;
-  if (ch === 'asUser') { const u = S.data.config.users.find(x => x.Name === e.target.value); S.user = u ? { name: u.Name, role: u.Role, owner: u.Sales_Owner_Name } : { name: 'Admin', role: 'Admin', owner: '' }; S.alertScope = 'mine'; route(); }
+  if (ch === 'asUser') { const u = S.data.config.users.find(x => x.Name === e.target.value); S.user = u ? { name: u.Name, role: u.Role, owner: u.Sales_Owner_Name } : { name: 'Admin', role: 'Admin', owner: '' }; S.alertScope = 'mine'; S.dashOwner = null; route(); }
   if (ch === 'dlgLost') $('#lostWrap').classList.toggle('hidden', e.target.value !== 'Lost');
 });
 window.addEventListener('hashchange', route);
