@@ -163,6 +163,20 @@ dl{margin:0}
 .tl .when{font-size:12.5px;color:var(--muted)}
 .fitrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
 .fitrow:last-child{border-bottom:none}
+.linkbtn{all:unset;cursor:pointer;color:var(--navy);font-size:13.5px;font-weight:600;text-decoration:none}
+.linkbtn:hover{text-decoration:underline}
+.linkbtn:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.fitsum{margin-top:12px;padding:14px 16px;border-radius:var(--r);background:var(--sunk);border:1px solid var(--line)}
+.fithead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:10px}
+.fithead .big{font-size:30px;font-weight:700;line-height:1}
+.scale{position:relative;display:flex;gap:3px}
+.scale .zone{display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:6px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;color:var(--muted);min-width:0;text-align:center}
+.scale .zone b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.scale .zone.on{background:var(--navy-l);border-color:var(--navy);color:var(--navy)}
+.scale .zone.on b{color:var(--navy)}
+.scale .pin{position:absolute;top:-6px;bottom:-6px;width:3px;margin-left:-1px;background:var(--ink);border-radius:2px}
+.guide{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.flash{box-shadow:0 0 0 3px var(--amber);transition:box-shadow .3s}
 /* form */
 .fsec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:16px;scroll-margin-top:16px}
 .fsec h2{margin:0;font-size:17px}
@@ -208,7 +222,7 @@ dl{margin:0}
 <!--DEMO_DATA-->
 <script>
 /* ============ ตั้งค่า (สำหรับเวอร์ชันจริงบน GitHub Pages) ============ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzL99K_ncSYwaKBj-oRsJTu9ovsgLtqTsO_7dW38n1kNYkR51nH1tmVUDCmXMnvys6kvQ/exec';    // URL ของ Apps Script Web App (…/exec)
+const API_URL = '';    // URL ของ Apps Script Web App (…/exec)
 const CLIENT_ID = '';  // Google OAuth Client ID
 /* ==================================================================== */
 
@@ -355,6 +369,59 @@ function applyFit(p) {
   p.Recommended_Building = recommend(p.WP_Fit_Score);
   return f;
 }
+/* ----- WP Fit Score panel ----- */
+// คำอธิบายเกณฑ์ (ร่าง — ให้ requester ยืนยัน แล้วแก้ข้อความตรงนี้ได้เลย)
+const FIT_GUIDE = {
+  'Executives / Professionals': 'พนักงานส่วนใหญ่เป็นผู้บริหารหรือสายวิชาชีพ เช่น ที่ปรึกษา การเงิน กฎหมาย',
+  'Technology & Innovation Talent': 'พนักงานส่วนใหญ่เป็นวิศวกร นักพัฒนา หรือทีม R&D',
+  'Staff / Workforce': 'พนักงานปฏิบัติการหรือ back office จำนวนมาก',
+  'Global or Regional Brand': 'แบรนด์ข้ามชาติ หรือเป็นที่รู้จักระดับภูมิภาค',
+  'Local Leading Brand': 'ผู้นำในตลาดไทย หรือเป็นที่รู้จักในอุตสาหกรรม',
+  'Unknown Brand': 'ยังไม่เป็นที่รู้จัก หรือบริษัทขนาดเล็ก'
+};
+const fitGuide = c => `<span class="hint guide">${S.data.config.fit.filter(f => f.Criterion === c).map(f => `<span><b>${esc(f.Score)}</b> ${esc(f.Option)}${FIT_GUIDE[f.Option] ? ' — ' + esc(FIT_GUIDE[f.Option]) : ''}</span>`).join('')}</span>`;
+const FIT_SRC = {
+  Location: ['Current_Zone', 'เลือกโซนปัจจุบัน', p => p.Current_Zone],
+  Budget: ['Required_Area_Min', 'ใส่พื้นที่ที่ต้องการ', p => { const a = num(p.Required_Area_Min) ?? num(p.Current_Area_sqm); return a == null ? '' : fmtN(a) + ' sqm' + (num(p.Required_Area_Min) == null ? ' (พื้นที่ปัจจุบัน)' : ''); }],
+  Industry: ['Business_Category', 'เลือก Business Category', p => p.Industry_Category],
+  Talent: ['Talent_Type', 'เลือก Talent', p => p.Talent_Type],
+  Brand: ['Brand_Type', 'เลือก Brand', p => p.Brand_Type],
+  Growth: ['Business_Growth', 'เลือก Business Growth', p => p.Business_Growth || (p.Expansion === 'Yes' ? 'มีแผนขยายพื้นที่' : '')]
+};
+function fitMax() {
+  const fit = S.data.config.fit, max = c => Math.max(0, ...fit.filter(f => f.Criterion === c).map(f => +f.Score));
+  return Object.keys(FIT_SRC).reduce((a, c) => a + max(c), 0) + fit.filter(f => f.Criterion === 'Bonus').length;
+}
+function fitPanel(p, mode) {
+  const f = fitScore(p), keys = Object.keys(FIT_SRC), missing = keys.filter(k => f.s[k] == null);
+  const legacy = !f.complete && p.WP_Fit_Score != null && num(p.WP_Fit_Score) != null;
+  const shown = f.complete ? f.total : legacy ? +p.WP_Fit_Score : null;
+  const rec = recommend(shown), max = fitMax();
+  const rows = keys.map(k => {
+    const [field, ask, src] = FIT_SRC[k], v = f.s[k], s = src(p);
+    const right = v != null ? `<b>${v}</b>` : mode === 'form'
+      ? `<button type="button" class="linkbtn" data-act="focusField" data-v="${field}">${ask} →</button>`
+      : `<a href="#/edit/${p.Company_ID}" class="linkbtn">${ask} →</a>`;
+    return `<div class="fitrow"><span>${k} Fit${s ? ` <span class="hint">· ${esc(s)}</span>` : ''}</span>${right}</div>`;
+  }).join('');
+  const bonusNames = [p.ESG === 'Yes' && 'ESG', p.Bonus_Ecosystem === 'Yes' && 'Ecosystem', p.Bonus_Referral === 'Yes' && 'Referral'].filter(Boolean);
+  const progress = f.complete ? `ครบ 6 หัวข้อ` : `ครบ ${6 - missing.length} จาก 6 หัวข้อ · ขาด ${missing.join(', ')}`;
+  // scale
+  const cuts = S.data.config.fit.filter(x => x.Criterion === 'Recommend').map(x => ({ min: +x.Option, b: x.Score })).sort((a, b) => a.min - b.min);
+  const zones = cuts.map((c, i) => ({ ...c, max: i < cuts.length - 1 ? cuts[i + 1].min - 1 : max }));
+  const scale = `<div class="scale" aria-hidden="true">${zones.map(z => `<div class="zone ${rec === z.b ? 'on' : ''}" style="flex:${z.max - z.min + 1}"><b>${esc(z.b)}</b><small>${z.min}${z.max >= max ? '+' : '–' + z.max}</small></div>`).join('')}${shown != null ? `<i class="pin" style="left:${Math.min(100, shown / max * 100)}%"></i>` : ''}</div>`;
+  const targets = [p.Target_Building_1, p.Target_Building_2].filter(Boolean);
+  const recB = rec ? rec.split('/').map(s => s.trim()) : [];
+  const mismatch = rec && targets.length && !targets.some(t => recB.includes(t));
+  return `<div>${rows}<div class="fitrow"><span>Bonus${bonusNames.length ? ` <span class="hint">· ${bonusNames.join(', ')}</span>` : ''}</span><b>+${f.bonus}</b></div></div>
+  <div class="fitsum">
+    <div class="fithead"><div><span class="big">${shown ?? '–'}</span><span class="hint"> / ${max}</span>${legacy ? ' <span class="type">คะแนนเดิม</span>' : ''}</div><div style="text-align:right">${rec ? `แนะนำ <b>${esc(rec)}</b>` : '<span class="hint">ยังคำนวณไม่ได้</span>'}</div></div>
+    ${scale}
+    <div class="hint" style="margin-top:8px">${progress}${legacy ? ' · แสดงคะแนนเดิมจนกว่าจะครบ 6 หัวข้อ' : ''}</div>
+  </div>
+  ${mismatch ? `<div class="warnbox" style="margin-top:12px">ลูกค้าสนใจ <b>${esc(targets.join(', '))}</b> แต่คะแนนแนะนำ <b>${esc(rec)}</b> · ลองเสนอ ${esc(rec)} เพิ่มเติม</div>` : ''}`;
+}
+
 /** สร้าง op สำหรับ auto alert ตามกฎใน Config */
 function autoAlertOps(p, existing) {
   const ops = [];
@@ -557,8 +624,6 @@ function vDetail(cid) {
   if (!p) { shell('list', `<div class="panel empty">ไม่พบบริษัท ${esc(cid)} <a href="#/list">กลับไปหน้าค้นหา</a></div>`); return; }
   const kv = (pairs) => `<dl class="kv">${pairs.filter(([, v]) => v !== '' && v != null).map(([l, v, raw]) => `<div><dt>${esc(l)}</dt><dd>${raw ? v : esc(v)}</dd></div>`).join('') || '<div class="muted">ยังไม่มีข้อมูล</div>'}</dl>`;
   const link = u => u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, '').slice(0, 40))}</a>` : '';
-  const f = fitScore(p);
-  const fitRows = [['Location', 'จากโซน'], ['Budget', 'จากพื้นที่'], ['Industry', 'จาก Industry'], ['Talent', p.Talent_Type || ''], ['Brand', p.Brand_Type || ''], ['Growth', 'จาก Business Growth']];
   const pend = pendingOf(cid), contacts = S.ix.contacts[cid] || [], fins = (S.ix.fin[cid] || []).slice().sort((a, b) => (b.FS_Year || b.Record_Year) - (a.FS_Year || a.Record_Year));
   const logs = (S.ix.logs[cid] || []).slice().sort((a, b) => a.Logged_At < b.Logged_At ? 1 : -1);
   const done = (S.ix.actions[cid] || []).filter(a => a.Status !== 'Pending');
@@ -582,7 +647,7 @@ function vDetail(cid) {
       <section class="panel"><h2>สัญญาปัจจุบัน</h2>${kv([['อาคาร', p.Existing_Building], ['โซน', p.Current_Zone], ['พื้นที่ปัจจุบัน', p.Current_Area_sqm != null ? fmtN(p.Current_Area_sqm) + ' sqm' : ''], ['เช่าตั้งแต่', fmtD(p.Occupied_Since)], ['หมดสัญญา', fmtExpiry(p)], ['ที่อยู่', p.Address]])}</section>
       <section class="panel"><h2>ความต้องการ</h2>${kv([['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+ sqm' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) + ' sqm' : ' sqm') : ''], ['อาคารเป้าหมาย', [p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', ')], ['Unit/Floor', p.Unit_Floor_Interested], ['ราคาเสนอ', p.Est_Rental_Rate != null ? fmtN(p.Est_Rental_Rate) + ' THB/sqm' : ''], ['หมายเหตุราคา', p.Rental_Rate_Note], ['Business Growth', p.Business_Growth], ['ขยายพื้นที่', p.Expansion === 'Yes' ? (p.Expansion_sqm ? fmtN(p.Expansion_sqm) + ' sqm' : 'Yes') : p.Expansion], ['Source', [p.Source, p.Agent].filter(Boolean).join(' · ')]])}</section>
       <section class="panel"><h2>ข้อมูลบริษัท</h2>${kv([['Business Category', p.Business_Category], ['ประเทศ', p.Country_of_Origin], ['ปีที่ก่อตั้ง', p.Year_Established], ['ทุนจดทะเบียน', p.Registered_Capital != null ? fmtN(p.Registered_Capital) + ' THB' : ''], ['พนักงาน (ไทย)', fmtN(p.Employees_TH)], ['มีบริษัทแม่', p.Has_Parent_Company], ['BOI / Listed / ESG', [p.BOI, p.Listed, p.ESG].map(v => v || '-').join(' / ')], ['Website', link(p.Website), 1], ['LinkedIn', link(p.LinkedIn), 1], ['ติดต่อครั้งแรก', fmtD(p.First_Contact_Date)]])}${p.Remark ? `<p style="margin:14px 0 0;white-space:pre-line"><span class="hint">Remark</span><br>${esc(p.Remark)}</p>` : ''}</section>
-      <section class="panel"><h2>WP Fit Score</h2>${fitRows.map(([k, src]) => `<div class="fitrow"><span>${k} Fit <span class="hint">${esc(src)}</span></span><b>${f.s[k] ?? '<span class="hint">ยังไม่มีข้อมูล</span>'}</b></div>`).join('')}<div class="fitrow"><span>Bonus</span><b>+${f.bonus}</b></div>${!f.complete && p.WP_Fit_Score != null ? '<p class="hint" style="margin:10px 0 0">คะแนนรวมเป็นคะแนนเดิม ระบบจะคำนวณใหม่เมื่อข้อมูลครบ 6 ด้าน</p>' : ''}</section>
+      <section class="panel"><h2>WP Fit Score</h2>${fitPanel(p, 'detail')}</section>
       <section class="panel"><h2>งบการเงิน (DBD)</h2>${fins.length ? `<div class="tblwrap"><table><thead><tr><th>ปีงบ</th><th class="num">รายได้</th><th class="num">กำไรสุทธิ</th><th class="num">Net Margin</th><th class="num">D/A</th><th class="num">Liquidity</th></tr></thead><tbody>${fins.map(r => `<tr><td>${esc(r.FS_Year || ('บันทึก ' + (r.Record_Year || '')))}</td><td class="num">${fmtN(r.Revenue)}</td><td class="num">${fmtN(r.Net_Profit)}</td><td class="num">${ratio(r.Net_Profit, r.Revenue)}</td><td class="num">${ratio(r.Total_Liabilities, r.Total_Assets)}</td><td class="num">${ratio(r.Current_Assets, r.Current_Liabilities)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="muted">ยังไม่มีข้อมูล</div>'}</section>
     </div>
     <div class="grid">
@@ -708,7 +773,7 @@ function vForm(cid) {
       ${inp('Rental_Rate_Note', 'หมายเหตุราคา', { ph: 'เช่น BTB 750 / BTE 1,000, turn-key 15,000' })}
     </section>
     <section class="fsec" id="s5"><h2>WP Fit Score</h2><p class="hint" style="margin:-8px 0 0">ระบบคำนวณ Location, Budget, Industry, Growth จากข้อมูลด้านบน · เลือก Talent และ Brand เพิ่ม</p>
-      <div class="fg">${sel('Talent_Type', 'Talent', lists('Talent_Type'))}${sel('Brand_Type', 'Brand', lists('Brand_Type'))}</div>
+      <div class="fg"><div class="f">${sel('Talent_Type', 'Talent', lists('Talent_Type'))}${fitGuide('Talent')}</div><div class="f">${sel('Brand_Type', 'Brand', lists('Brand_Type'))}${fitGuide('Brand')}</div></div>
       <div style="display:flex;flex-wrap:wrap;gap:0 26px">${yn('Bonus_Ecosystem', 'Bonus: Ecosystem Contribution')}${yn('Bonus_Referral', 'Bonus: Referral Potential')}<span class="chk hint">Bonus ESG ใช้ค่าจากช่อง ESG</span></div>
       <div id="fitPrev"></div>
     </section>
@@ -767,10 +832,7 @@ function formLive() {
   const dups = n.length > 2 ? S.data.prospects.filter(x => x.Company_ID !== cid && (norm(x.Company_Name) === n || (n.length > 5 && norm(x.Company_Name).includes(n)))) : [];
   const dw = $('#dupWarn'); dw.classList.toggle('hidden', !dups.length);
   dw.innerHTML = dups.length ? `พบชื่อใกล้เคียงในระบบ: ${dups.slice(0, 3).map(d => `<a href="#/p/${d.Company_ID}">${esc(d.Company_Name)}</a> (${d.Company_ID}, ${esc(d.Pipeline_Status)})`).join(', ')} · ตรวจว่าไม่ใช่รายเดียวกันก่อนบันทึก` : '';
-  const f = fitScore(p), labels = { Location: 'Location', Budget: 'Budget', Industry: 'Industry', Talent: 'Talent', Brand: 'Brand', Growth: 'Growth' };
-  const total = f.complete ? f.total : p.WP_Fit_Score;
-  $('#fitPrev').innerHTML = `<div>${Object.entries(f.s).map(([k, val]) => `<div class="fitrow"><span>${labels[k]} Fit</span><b>${val ?? '<span class="hint">ยังไม่มีข้อมูล</span>'}</b></div>`).join('')}<div class="fitrow"><span>Bonus</span><b>+${f.bonus}</b></div></div>
-    <div class="score" style="flex-direction:row;justify-content:space-between;gap:12px;margin-top:10px;padding:14px 18px"><span style="font-size:15px">คะแนนรวม <b style="font-size:26px;margin-left:6px">${total ?? '–'}</b></span><span style="font-size:15px">${f.complete ? 'แนะนำ: <b>' + esc(recommend(total) || '-') + '</b>' : (p.WP_Fit_Score != null ? 'คะแนนเดิม (ข้อมูลยังไม่ครบ 6 ด้าน)' : 'กรอกให้ครบ 6 ด้านเพื่อคำนวณ')}</span></div>`;
+  $('#fitPrev').innerHTML = fitPanel(p, 'form');
   const items = [];
   if (cid) pendingOf(cid).filter(a => a.Action_Type === 'Manual').forEach(a => items.push(['Manual', a.Due_Date, a.Message, 'เดิม']));
   autoAlertPreview(p).forEach(a => items.push(['Auto', a.due, a.msg, '']));
@@ -879,6 +941,7 @@ const ACT = {
   addFin: () => { $('#fins').insertAdjacentHTML('beforeend', finHTML({})); },
   delRow: el => { el.closest('.rowcard').remove(); formLive(); },
   jump: (el, e) => { e.preventDefault(); document.getElementById(el.dataset.v).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); },
+  focusField: el => { const f = $('#pform').elements[el.dataset.v]; if (!f) return; f.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); setTimeout(() => f.focus({ preventScroll: true }), 300); f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 1600); },
   signout: () => signOut()
 };
 document.addEventListener('click', e => {
