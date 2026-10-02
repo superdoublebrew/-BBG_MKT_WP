@@ -298,11 +298,19 @@ dl{margin:0}
 <script>
 /* ============ ตั้งค่า (สำหรับเวอร์ชันจริงบน GitHub Pages) ============ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbzL99K_ncSYwaKBj-oRsJTu9ovsgLtqTsO_7dW38n1kNYkR51nH1tmVUDCmXMnvys6kvQ/exec';    // URL ของ Apps Script Web App (…/exec)
-const CLIENT_ID = '';  // Google OAuth Client ID
 /* ==================================================================== */
 
 // ไฟล์โลโก้ (อัปโหลดไว้ใน repo เดียวกับ index.html)
 const LOGO = window.LOGO_DATA || { light: 'logo.png', dark: 'logo-white.png' };
+const PERM_LIST = [['see_all', 'เห็นข้อมูลทุกบริษัท'], ['edit', 'เพิ่มและแก้ไขข้อมูล'], ['edit_others', 'แก้ไขบริษัทของเซลคนอื่น'], ['change_owner', 'เปลี่ยน Sales Owner'], ['export', 'ส่งออก CSV'], ['settings', 'แก้ไขหน้าตั้งค่า']];
+const PERM_DEFAULT = { Admin: [1, 1, 1, 1, 1, 1], Manager: [1, 1, 1, 1, 1, 0], Sales: [1, 1, 0, 0, 0, 0] };
+function permsOf(role) {
+  const rows = (S.data && S.data.config.permissions) || [], out = {};
+  PERM_LIST.forEach(([k], i) => { const r = rows.find(x => x.Permission === k); out[k] = r && r[role] != null ? r[role] === 'Yes' : !!(PERM_DEFAULT[role] || [])[i]; });
+  return out;
+}
+const can = k => !!(S.user && S.user.perms && S.user.perms[k]);
+const canEdit = p => can('edit') && (can('edit_others') || !S.user.owner || (p && p.Sales_Owner === S.user.owner));
 const DEMO = !API_URL && typeof window.DEMO_DATA !== 'undefined';
 const S = { dashOwner: null, data: null, user: null, token: null, filters: null, sort: { k: 'Company_Name', d: 1 }, alertTab: 'overdue', alertScope: 'mine', ix: {} };
 const STATUSES = ['Sale Blitz', 'Prospected', 'Inspected', 'Follow-Up', 'Negotiation', 'Closed Deal', 'Lost'];
@@ -587,11 +595,12 @@ function goList(patch) { S.filters = Object.assign(blankFilters(), patch); locat
 const NAV = [['dashboard', 'ภาพรวม', 'dash'], ['list', 'ค้นหา Prospect', 'list'], ['new', 'เพิ่ม Prospect', 'plus'], ['alerts', 'Follow-up', 'bell'], ['settings', 'ตั้งค่า', 'gear']];
 function shell(page, html) {
   const od = S.data.actions.filter(a => a.Status === 'Pending' && a.Due_Date < todayISO() && isMine(a.Assigned_To)).length;
-  const nav = NAV.filter(n => n[0] !== 'settings' || S.user.role === 'Admin').map(([k, l, i]) =>
+  const nav = NAV.filter(n => (n[0] !== 'settings' || can('settings')) && (n[0] !== 'new' || can('edit'))).map(([k, l, i]) =>
     `<a href="#/${k}" ${page === k ? 'aria-current="page"' : ''}>${ic(i)}<span>${l}</span>${k === 'alerts' && od ? `<span class="badge" aria-label="เลยกำหนด ${od} รายการ">${od}</span>` : ''}</a>`).join('');
   const who = DEMO
     ? `<label class="f" style="font-weight:400">ดูในฐานะ<select class="in" data-change="asUser">${S.data.config.users.map(u => `<option ${u.Name === S.user.name ? 'selected' : ''}>${esc(u.Name)}</option>`).join('')}<option ${S.user.role === 'Admin' ? 'selected' : ''}>Admin</option></select></label><div class="demo">โหมดเดโม: ข้อมูลที่แก้จะไม่ถูกบันทึกจริง รีเฟรชแล้วกลับเป็นค่าเดิม</div>`
-    : `<div>${esc(S.user.name)} <span class="muted">(${esc(S.user.role)})</span></div>${CLIENT_ID ? '<button class="btn sm" data-act="signout">ออกจากระบบ</button>' : ''}`;
+    : S.user.open ? `<div class="demo">ระบบยังไม่เปิด login · ใส่อีเมลของ Admin ใน Config › Users เพื่อเปิดใช้</div>`
+    : `<div><b style="color:var(--ink)">${esc(S.user.name)}</b><br>${esc(S.user.role)}${S.user.owner && S.user.owner !== S.user.name ? ' · ' + esc(S.user.owner) : ''}</div><button class="btn sm" data-act="signout">ออกจากระบบ</button>`;
   $('#root').innerHTML = `<div class="app"><aside class="side"><div class="brand ${S.noLogo ? 'nologo' : ''}"><picture><source srcset="${LOGO.dark}" media="(prefers-color-scheme: dark)"><img class="brandlogo" src="${LOGO.light}" alt="Bhiraj Buri Group" onerror="S.noLogo=true;this.closest('.brand').classList.add('nologo')"></picture><span>Prospect Tenant<small>Workplace Marketing</small></span></div><nav class="nav" aria-label="เมนูหลัก">${nav}</nav><div class="side-foot">${who}</div></aside><main class="main" id="main">${html}</main></div>`;
 }
 
@@ -645,8 +654,8 @@ function vDashboard() {
   shell('dashboard', `<div class="dash">
   <div class="dhd">
     <div><h1>ภาพรวม Prospect</h1><div class="sub">ข้อมูล ณ ${fmtD(t)} · ${P.length} บริษัท</div></div>
-    <div class="seg2" role="group" aria-label="ดูข้อมูลของ"><button type="button" data-act="dashOwner" data-v="" aria-pressed="${!own}">ทั้งทีม</button>${owners.map(o => `<button type="button" data-act="dashOwner" data-v="${esc(o)}" aria-pressed="${own === o}">${esc(o)}</button>`).join('')}</div>
-    <a class="btn pri" href="#/new" style="margin-left:auto">+ เพิ่ม Prospect</a>
+    <div class="seg2 ${can('see_all') ? '' : 'hidden'}" role="group" aria-label="ดูข้อมูลของ"><button type="button" data-act="dashOwner" data-v="" aria-pressed="${!own}">ทั้งทีม</button>${owners.map(o => `<button type="button" data-act="dashOwner" data-v="${esc(o)}" aria-pressed="${own === o}">${esc(o)}</button>`).join('')}</div>
+    ${can('edit') ? '<a class="btn pri" href="#/new" style="margin-left:auto">+ เพิ่ม Prospect</a>' : ''}
   </div>
   <div class="kpis5">
     ${kpi(active.length, 'ดีลที่กำลังดำเนินการ', 'goActive')}
@@ -677,7 +686,7 @@ function vList() {
   const saved = store.get('savedFilters') || [];
   const fields = Object.keys(LABEL).filter(k => !['Company_ID'].includes(k));
   shell('list', `
-  <div class="topline"><h1>ค้นหา Prospect</h1><a class="btn pri" href="#/new">เพิ่ม Prospect</a></div>
+  <div class="topline"><h1>ค้นหา Prospect</h1>${can('edit') ? '<a class="btn pri" href="#/new">เพิ่ม Prospect</a>' : ''}</div>
   <div class="lay">
     <aside class="panel filters" aria-label="ตัวกรอง">
       <label class="f">ค้นหา<input class="in" data-f="q" value="${esc(F.q)}" placeholder="ชื่อบริษัท อาคาร หรือหมายเหตุ"></label>
@@ -724,7 +733,7 @@ function renderResults() {
   F.conds.forEach(c => add(LABEL[c.field], (OPS[fieldType(c.field)].find(o => o[0] === c.op) || [, ''])[1] + ' ' + (c.value || '')));
   const th = (key, l, cls = '') => `<th class="${cls}" aria-sort="${k === key ? (d > 0 ? 'ascending' : 'descending') : 'none'}"><button data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
   $('#results').innerHTML = `
-  <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span><button class="btn sm" data-act="csv">ส่งออก CSV</button></div>
+  <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span>${can('export') ? '<button class="btn sm" data-act="csv">ส่งออก CSV</button>' : ''}</div>
   ${chips.length ? `<div class="active-f">${chips.join('')}</div>` : ''}
   ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}</tr></thead><tbody>
   ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc(p.Industry_Category || '')}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc([p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
@@ -756,7 +765,8 @@ function vDetail(cid) {
     </div>
     <div class="score ${p.WP_Fit_Score == null ? 'none' : ''}" title="WP Fit Score"><b>${p.WP_Fit_Score ?? '–'}</b><span>${p.Recommended_Building ? esc(p.Recommended_Building) : 'Fit Score'}</span></div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+  ${canEdit(p) ? '' : '<div class="hint" style="margin-bottom:14px">ดูได้อย่างเดียว · บริษัทนี้ดูแลโดย ' + esc(p.Sales_Owner || '-') + '</div>'}
+  <div style="display:${canEdit(p) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap;margin-bottom:18px">
     <button class="btn pri" data-act="dlgStatus" data-id="${cid}">เปลี่ยนสถานะ</button>
     <button class="btn" data-act="dlgActivity" data-id="${cid}">บันทึกกิจกรรม</button>
     <button class="btn" data-act="dlgFU" data-id="${cid}">ตั้ง Follow-up</button>
@@ -771,7 +781,7 @@ function vDetail(cid) {
       <section class="panel"><h2>งบการเงิน (DBD)</h2>${fins.length ? `<div class="tblwrap"><table><thead><tr><th>ปีงบ</th><th class="num">รายได้</th><th class="num">กำไรสุทธิ</th><th class="num">Net Margin</th><th class="num">D/A</th><th class="num">Liquidity</th></tr></thead><tbody>${fins.map(r => `<tr><td>${esc(r.FS_Year || ('บันทึก ' + (r.Record_Year || '')))}</td><td class="num">${fmtN(r.Revenue)}</td><td class="num">${fmtN(r.Net_Profit)}</td><td class="num">${ratio(r.Net_Profit, r.Revenue)}</td><td class="num">${ratio(r.Total_Liabilities, r.Total_Assets)}</td><td class="num">${ratio(r.Current_Assets, r.Current_Liabilities)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="muted">ยังไม่มีข้อมูล</div>'}</section>
     </div>
     <div class="grid">
-      <section class="panel"><h2>Follow-up ที่ค้างอยู่</h2>${pend.length ? pend.map(a => `<div class="fu" style="grid-template-columns:92px minmax(0,1fr)"><div class="d ${a.Due_Date < todayISO() ? 'late' : ''}">${fmtD(a.Due_Date)}</div><div>${esc(a.Message)}<div class="m"><span class="type ${a.Action_Type}">${a.Action_Type}</span> ${esc(a.Assigned_To || '')}</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" data-act="aDone" data-id="${a.Action_ID}">เสร็จแล้ว</button><button class="btn sm" data-act="aSnooze" data-id="${a.Action_ID}" data-days="7">เลื่อน 7 วัน</button><button class="btn sm ghost" data-act="aCancel" data-id="${a.Action_ID}">ยกเลิก</button></div></div></div>`).join('') : '<div class="muted">ไม่มีรายการค้าง</div>'}</section>
+      <section class="panel"><h2>Follow-up ที่ค้างอยู่</h2>${pend.length ? pend.map(a => `<div class="fu" style="grid-template-columns:92px minmax(0,1fr)"><div class="d ${a.Due_Date < todayISO() ? 'late' : ''}">${fmtD(a.Due_Date)}</div><div>${esc(a.Message)}<div class="m"><span class="type ${a.Action_Type}">${a.Action_Type}</span> ${esc(a.Assigned_To || '')}</div><div style="display:${canEdit(p) ? 'flex' : 'none'};gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" data-act="aDone" data-id="${a.Action_ID}">เสร็จแล้ว</button><button class="btn sm" data-act="aSnooze" data-id="${a.Action_ID}" data-days="7">เลื่อน 7 วัน</button><button class="btn sm ghost" data-act="aCancel" data-id="${a.Action_ID}">ยกเลิก</button></div></div></div>`).join('') : '<div class="muted">ไม่มีรายการค้าง</div>'}</section>
       <section class="panel"><h2>ผู้ติดต่อ</h2>${contacts.length ? contacts.map(c => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(c.Name || '-')}</b>${c.Is_Primary === 'Yes' ? ' <span class="type Auto">หลัก</span>' : ''}<div class="hint">${esc([c.Position, c.Role_in_Deal].filter(Boolean).join(' · '))}</div>${c.Email ? `<div><a href="mailto:${esc(c.Email.split(',')[0].trim())}">${esc(c.Email)}</a></div>` : ''}${c.Phone ? `<div>${esc(c.Phone)}</div>` : ''}</div>`).join('') : '<div class="muted">ยังไม่มีผู้ติดต่อ</div>'}</section>
       <section class="panel"><h2>ประวัติ</h2><ul class="tl">${[...logs.map(l => [l.Logged_At || '', `<li><div class="when">${fmtD(l.Logged_At)} · ${esc(l.Logged_By || '')}</div><b>${esc(l.Log_Type)}</b>${l.Log_Type === 'Status Change' || l.Log_Type === 'Created' ? ` ${l.From_Status ? stTag(l.From_Status) + ' → ' : ''}${stTag(l.To_Status)}` : ''}${l.Detail ? `<div>${esc(l.Detail)}</div>` : ''}</li>`]), ...done.filter(a => a.Status === 'Cancelled').map(a => [a.Completed_At || a.Due_Date || '', `<li><div class="when">${fmtD(a.Completed_At || a.Due_Date)}</div><b>Follow-up ยกเลิก</b><div class="muted">${esc(a.Message)}${a.Note ? ' · ' + esc(a.Note) : ''}</div></li>`])].sort((a, b) => a[0] < b[0] ? 1 : -1).map(x => x[1]).join('') || '<li>ยังไม่มีประวัติ</li>'}</ul></section>
     </div>
@@ -842,6 +852,7 @@ async function actionUpdate(id, kind, days) {
 function vForm(cid) {
   const ex = cid ? S.ix.p[cid] : null;
   if (cid && !ex) { shell('list', '<div class="panel empty">ไม่พบบริษัท</div>'); return; }
+  if (cid ? !canEdit(ex) : !can('edit')) { shell('list', '<div class="panel empty">คุณไม่มีสิทธิ์แก้ไขรายการนี้</div>'); return; }
   const p = ex ? clone(ex) : { Pipeline_Status: 'Sale Blitz', First_Contact_Date: todayISO(), Sales_Owner: S.user.owner || lists('Sales_Owner')[0], Expiry_Precision: null };
   const contacts = cid ? clone(S.ix.contacts[cid] || []) : [{ Is_Primary: 'Yes' }];
   const fins = cid ? clone(S.ix.fin[cid] || []) : [];
@@ -865,7 +876,7 @@ function vForm(cid) {
       <div id="dupWarn" class="warnbox hidden"></div>
       <div class="f">สถานะ <span class="req" style="display:none">*</span>${seg('Pipeline_Status', STATUSES.map(s => [s, s]))}</div>
       <label class="f ${p.Pipeline_Status === 'Lost' ? '' : 'hidden'}" id="lostF">เหตุผลที่ Lost <span class="req">*</span><input class="in" name="Lost_Reason" value="${v('Lost_Reason')}"></label>
-      <div class="fg">${inp('First_Contact_Date', 'วันที่ติดต่อครั้งแรก', { req: 1, type: 'date' })}${sel('Source', 'Source', lists('Source'), { req: 1 })}${sel('Agent', 'Agent', lists('Agent'), { cls: p.Source === 'Agent' ? '' : 'hidden', id: 'agentF' })}${S.user.role !== 'Sales' ? sel('Sales_Owner', 'Sales Owner', lists('Sales_Owner'), { req: 1 }) : ''}</div>
+      <div class="fg">${inp('First_Contact_Date', 'วันที่ติดต่อครั้งแรก', { req: 1, type: 'date' })}${sel('Source', 'Source', lists('Source'), { req: 1 })}${sel('Agent', 'Agent', lists('Agent'), { cls: p.Source === 'Agent' ? '' : 'hidden', id: 'agentF' })}${can('change_owner') ? sel('Sales_Owner', 'Sales Owner', lists('Sales_Owner'), { req: 1 }) : ''}</div>
       <div class="fg">${sel('Business_Category', 'Business Category', lists('Business_Category'))}<div class="f">Industry Category<div class="auto" id="indAuto">${esc(p.Industry_Category || '—')}</div></div>${sel('Country_of_Origin', 'ประเทศต้นทาง', lists('Country'))}</div>
       <div class="fg">${inp('Year_Established', 'ปีที่ก่อตั้ง', { num: 1 })}${inp('Registered_Capital', 'ทุนจดทะเบียน (THB)', { num: 1 })}${inp('Employees_TH', 'พนักงาน (ไทย)', { num: 1 })}</div>
       <div style="display:flex;flex-wrap:wrap;gap:0 26px">${yn('Has_Parent_Company', 'มีบริษัทแม่')}${yn('BOI', 'BOI')}${yn('Listed', 'Listed')}${yn('ESG', 'ESG')}</div>
@@ -1047,17 +1058,18 @@ function vAlerts() {
   shell('alerts', `
   <div class="topline"><h1>Follow-up</h1>${S.user.owner ? `<div class="chips"><button class="chip" data-act="scope" data-v="mine" aria-pressed="${S.alertScope === 'mine'}">ของฉัน</button><button class="chip" data-act="scope" data-v="all" aria-pressed="${S.alertScope === 'all'}">ทั้งทีม</button></div>` : ''}</div>
   <div class="tabs" role="tablist">${Object.entries(groups).map(([k, [l, r]]) => `<button class="chip" role="tab" data-act="atab" data-v="${k}" aria-selected="${S.alertTab === k}" aria-pressed="${S.alertTab === k}">${l} (${r.length})</button>`).join('')}</div>
-  ${rows.length ? `<div class="tblwrap"><table><thead><tr><th>วันที่</th><th>บริษัท</th><th>ข้อความ</th><th>ประเภท</th><th>ผู้รับผิดชอบ</th><th></th></tr></thead><tbody>${rows.map(a => { const p = S.ix.p[a.Company_ID] || {}; const late = a.Status === 'Pending' && a.Due_Date < t; return `<tr><td class="${late ? 'late' : ''}" style="white-space:nowrap">${fmtD(a.Due_Date)}</td><td><a href="#/p/${a.Company_ID}">${esc(p.Company_Name || a.Company_ID)}</a><div>${stTag(p.Pipeline_Status)}</div></td><td>${esc(a.Message)}${a.Note ? `<div class="hint">${esc(a.Note)}</div>` : ''}</td><td><span class="type ${a.Action_Type}">${a.Action_Type}</span></td><td>${esc(a.Assigned_To || '')}</td><td style="white-space:nowrap">${a.Status === 'Pending' ? `<button class="btn sm" data-act="aDone" data-id="${a.Action_ID}">เสร็จแล้ว</button> <button class="btn sm" data-act="aSnooze" data-id="${a.Action_ID}" data-days="7">+7 วัน</button> <button class="btn sm ghost" data-act="aCancel" data-id="${a.Action_ID}">ยกเลิก</button>` : `<span class="muted">${a.Status === 'Done' ? 'เสร็จ' : 'ยกเลิก'} ${fmtD(a.Completed_At)}</span>`}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="panel empty">ไม่มีรายการในกลุ่มนี้</div>'}`);
+  ${rows.length ? `<div class="tblwrap"><table><thead><tr><th>วันที่</th><th>บริษัท</th><th>ข้อความ</th><th>ประเภท</th><th>ผู้รับผิดชอบ</th><th></th></tr></thead><tbody>${rows.map(a => { const p = S.ix.p[a.Company_ID] || {}; const late = a.Status === 'Pending' && a.Due_Date < t; return `<tr><td class="${late ? 'late' : ''}" style="white-space:nowrap">${fmtD(a.Due_Date)}</td><td><a href="#/p/${a.Company_ID}">${esc(p.Company_Name || a.Company_ID)}</a><div>${stTag(p.Pipeline_Status)}</div></td><td>${esc(a.Message)}${a.Note ? `<div class="hint">${esc(a.Note)}</div>` : ''}</td><td><span class="type ${a.Action_Type}">${a.Action_Type}</span></td><td>${esc(a.Assigned_To || '')}</td><td style="white-space:nowrap">${a.Status === 'Pending' && canEdit(p) ? `<button class="btn sm" data-act="aDone" data-id="${a.Action_ID}">เสร็จแล้ว</button> <button class="btn sm" data-act="aSnooze" data-id="${a.Action_ID}" data-days="7">+7 วัน</button> <button class="btn sm ghost" data-act="aCancel" data-id="${a.Action_ID}">ยกเลิก</button>` : `<span class="muted">${a.Status === 'Done' ? 'เสร็จ' : 'ยกเลิก'} ${fmtD(a.Completed_At)}</span>`}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="panel empty">ไม่มีรายการในกลุ่มนี้</div>'}`);
 }
 
 /* ---------------- settings ---------------- */
 function vSettings() {
-  if (S.user.role !== 'Admin') { shell('dashboard', '<div class="panel empty">หน้านี้สำหรับ Admin</div>'); return; }
+  if (!can('settings')) { shell('dashboard', '<div class="panel empty">คุณไม่มีสิทธิ์เข้าหน้านี้</div>'); return; }
   const c = S.data.config, names = [...new Set(c.lists.map(l => l.List))];
   shell('settings', `<div class="topline"><div><h1>ตั้งค่า</h1><div class="sub">แก้ไขได้ที่ Google Sheet แท็บ Config แล้วรีเฟรชหน้านี้</div></div></div>
   <div class="dgrid" style="margin-top:0">
   <section class="panel"><h2>กฎการแจ้งเตือนอัตโนมัติ</h2>${c.rules.map(r => `<div class="fitrow"><span><b>${esc(r.Rule_Name)}</b><div class="hint">${esc(r.Message_Template)}</div></span><span>${r.Active === 'Yes' ? 'เปิด' : 'ปิด'}</span></div>`).join('')}</section>
-  <section class="panel"><h2>ผู้ใช้งาน</h2>${c.users.map(u => `<div class="fitrow"><span>${esc(u.Name)} <span class="hint">${esc(u.Sales_Owner_Name || '')}</span></span><span>${esc(u.Role)}${u.Active === 'Yes' ? '' : ' (ปิด)'}</span></div>`).join('')}</section>
+  <section class="panel"><h2>สิทธิ์ตามบทบาท</h2><div class="tblwrap"><table><thead><tr><th>สิทธิ์</th>${['Admin', 'Manager', 'Sales'].map(r => `<th style="text-align:center">${r}</th>`).join('')}</tr></thead><tbody>${PERM_LIST.map(([k, l]) => `<tr><td>${esc(l)}</td>${['Admin', 'Manager', 'Sales'].map(r => `<td style="text-align:center">${permsOf(r)[k] ? '✓' : '<span class="muted">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="hint" style="margin:10px 0 0">แก้ได้ที่ Config › ตาราง Permission (Yes/No)</p></section>
+  <section class="panel"><h2>ผู้ใช้งาน</h2>${c.users.map(u => `<div class="fitrow"><span>${esc(u.Name)} <span class="hint">${esc(u.Sales_Owner_Name || '')}${u.HasEmail === false ? ' · <span style="color:var(--amber)">ยังไม่มีอีเมล</span>' : ''}</span></span><span>${esc(u.Role)}${u.Active === 'Yes' ? '' : ' (ปิด)'}</span></div>`).join('')}</section>
   <section class="panel"><h2>เกณฑ์ WP Fit Score</h2>${c.fit.map(f => `<div class="fitrow"><span>${esc(f.Criterion)} <span class="hint">${esc(f.Criterion === 'Budget' ? '≥ ' + f.Option + ' sqm' : f.Criterion === 'Recommend' ? '≥ ' + f.Option + ' คะแนน' : f.Option)}</span></span><b>${esc(f.Score)}</b></div>`).join('')}</section>
   ${names.map(n => `<section class="panel"><h2>${esc(n)}</h2><div class="chips">${lists(n).map(v => `<span class="chip" style="cursor:default">${esc(v)}</span>`).join('')}</div></section>`).join('')}
   </div>`);
@@ -1128,25 +1140,56 @@ document.addEventListener('change', e => {
   if (c === 'field' || c === 'op') { const cd = S.filters.conds[+e.target.closest('.cond').dataset.i]; cd[c] = e.target.value; if (c === 'field') { cd.op = OPS[fieldType(cd.field)][0][0]; cd.value = ''; } vList(); return; }
   if (e.target.dataset.f === 'expWithin') return;
   const ch = e.target.dataset.change;
-  if (ch === 'asUser') { const u = S.data.config.users.find(x => x.Name === e.target.value); S.user = u ? { name: u.Name, role: u.Role, owner: u.Sales_Owner_Name } : { name: 'Admin', role: 'Admin', owner: '' }; S.alertScope = 'mine'; S.dashOwner = null; route(); }
+  if (ch === 'asUser') { const u = S.data.config.users.find(x => x.Name === e.target.value); S.user = u ? { name: u.Name, role: u.Role, owner: u.Sales_Owner_Name } : { name: 'Admin', role: 'Admin', owner: '' }; S.user.perms = permsOf(S.user.role); S.alertScope = 'mine'; S.dashOwner = null; route(); }
   if (ch === 'dlgLost') $('#lostWrap').classList.toggle('hidden', e.target.value !== 'Lost');
 });
 window.addEventListener('hashchange', route);
 
 /* ---------------- auth & boot ---------------- */
-function signOut(msg) { S.token = null; try { sessionStorage.removeItem('idt'); } catch (e) { } S.data = null; showLogin(msg); }
-function showLogin(msg) {
-  $('#root').innerHTML = `<div class="panel login"><h1 style="margin:0 0 6px;font-size:22px">Prospect Tenant Platform</h1><p class="sub" style="margin:0 0 20px">เข้าสู่ระบบด้วยบัญชี Google ขององค์กร</p>${msg ? `<div class="errbox" style="margin-bottom:16px">${esc(msg.replace(/^AUTH:\s*/, ''))}</div>` : ''}<div id="gbtn" style="display:flex;justify-content:center"></div></div>`;
-  const init = () => { google.accounts.id.initialize({ client_id: CLIENT_ID, callback: r => { S.token = r.credential; try { sessionStorage.setItem('idt', r.credential); } catch (e) { } boot(); } }); google.accounts.id.renderButton($('#gbtn'), { theme: 'outline', size: 'large', text: 'signin_with' }); };
-  if (window.google?.accounts) init(); else { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); }
+async function authCall(action, payload) {
+  const j = await getJSON(API_URL + '?action=' + action + '&payload=' + encodeURIComponent(JSON.stringify(payload)));
+  if (!j.ok) throw new Error(j.error);
+  return j;
 }
+function signOut(msg) { S.token = null; store.set('pt_token', null); S.data = null; showLogin(msg); }
+function showLogin(msg, step, email) {
+  email = email || store.get('pt_email') || '';
+  const e = msg ? `<div class="errbox" style="margin-bottom:14px;text-align:left">${esc(String(msg).replace(/^AUTH:\s*/, ''))}</div>` : '';
+  $('#root').innerHTML = `<div class="panel login" style="text-align:left">
+    <picture><source srcset="${LOGO.dark}" media="(prefers-color-scheme: dark)"><img src="${LOGO.light}" alt="Bhiraj Buri Group" style="width:170px;display:block;margin:0 0 18px" onerror="this.remove()"></picture>
+    <h1 style="margin:0 0 4px;font-size:21px">เข้าสู่ระบบ Prospect Tenant</h1>
+    ${step === 'code'
+      ? `<p class="sub" style="margin:0 0 18px">ส่งรหัส 6 หลักไปที่ <b>${esc(email)}</b> แล้ว (ใช้ได้ 10 นาที)</p>${e}
+         <form id="lf" class="grid" style="gap:12px"><label class="f">รหัสจากอีเมล<input class="in" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="font-size:22px;letter-spacing:6px;text-align:center"></label>
+         <button class="btn pri">ยืนยัน</button>
+         <div style="display:flex;justify-content:space-between"><button type="button" class="btn ghost sm" data-act="loginBack">เปลี่ยนอีเมล</button><button type="button" class="btn ghost sm" data-act="loginResend">ส่งรหัสใหม่</button></div></form>
+         <p class="hint" style="margin:14px 0 0">ไม่เจออีเมล ลองดูในโฟลเดอร์ Junk/Spam</p>`
+      : `<p class="sub" style="margin:0 0 18px">ใส่อีเมลบริษัท ระบบจะส่งรหัสไปให้ · ขอรหัสแค่ครั้งแรกของแต่ละเครื่อง</p>${e}
+         <form id="lf" class="grid" style="gap:12px"><label class="f">อีเมล<input class="in" name="email" type="email" autocomplete="email" value="${esc(email)}"></label><button class="btn pri">ส่งรหัสเข้าสู่ระบบ</button></form>`}
+  </div>`;
+  const f = $('#lf'), first = f.querySelector('input'); first.focus();
+  f.onsubmit = async ev => {
+    ev.preventDefault(); const btn = f.querySelector('.btn.pri'); if (btn.disabled) return; btn.disabled = true; btn.textContent = 'กำลังดำเนินการ…';
+    try {
+      if (step === 'code') {
+        const j = await authCall('otp_verify', { email, code: f.elements.code.value });
+        S.token = j.token; store.set('pt_token', j.token); boot();
+      } else {
+        const em = f.elements.email.value.trim().toLowerCase(); if (!em) throw new Error('กรุณาใส่อีเมล');
+        await authCall('otp_request', { email: em }); store.set('pt_email', em); showLogin('', 'code', em);
+      }
+    } catch (err) { showLogin(err.message, step, step === 'code' ? email : f.elements.email.value); }
+  };
+}
+ACT.loginBack = () => showLogin('', 'email');
+ACT.loginResend = async () => { const em = store.get('pt_email'); try { await authCall('otp_request', { email: em }); showLogin('', 'code', em); toast('ส่งรหัสใหม่แล้ว'); } catch (e) { showLogin(e.message, 'code', em); } };
 async function boot() {
-  if (DEMO) { const u = window.DEMO_DATA.config.users[1] || window.DEMO_DATA.config.users[0]; S.user = { name: u.Name, role: 'Sales', owner: u.Sales_Owner_Name }; await loadData(); route(); return; }
-  if (!API_URL) { $('#root').innerHTML = '<div class="panel login"><h1 style="font-size:20px;margin:0 0 8px">ยังไม่ได้ตั้งค่า</h1><p>ใส่ API_URL และ CLIENT_ID ที่ส่วนบนของไฟล์ index.html</p></div>'; return; }
-  if (!S.token) { try { S.token = sessionStorage.getItem('idt'); } catch (e) { } }
-  if (CLIENT_ID && !S.token) { showLogin(); return; }
+  if (DEMO) { const u = window.DEMO_DATA.config.users[1] || window.DEMO_DATA.config.users[0]; await loadData(); S.user = { name: u.Name, role: 'Sales', owner: u.Sales_Owner_Name }; S.user.perms = permsOf('Sales'); route(); return; }
+  if (!API_URL) { $('#root').innerHTML = '<div class="panel login"><h1 style="font-size:20px;margin:0 0 8px">ยังไม่ได้ตั้งค่า</h1><p>ใส่ API_URL ที่ส่วนบนของไฟล์ index.html</p></div>'; return; }
+  if (!S.token) S.token = store.get('pt_token');
   $('#root').innerHTML = '<div class="empty">กำลังโหลดข้อมูล…</div>';
-  try { await loadData(); route(); } catch (e) { if (!String(e.message).startsWith('AUTH')) $('#root').innerHTML = `<div class="panel login"><div class="errbox">โหลดข้อมูลไม่สำเร็จ: ${esc(e.message)}</div><button class="btn" style="margin-top:12px" onclick="boot()">ลองอีกครั้ง</button></div>`; }
+  try { await loadData(); route(); }
+  catch (e) { if (!String(e.message).startsWith('AUTH')) $('#root').innerHTML = `<div class="panel login"><div class="errbox">โหลดข้อมูลไม่สำเร็จ: ${esc(e.message)}</div><button class="btn" style="margin-top:12px" onclick="boot()">ลองอีกครั้ง</button></div>`; }
 }
 boot();
 </script>
