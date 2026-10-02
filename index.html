@@ -1,4 +1,4 @@
-<!doctype html>
+ล<!doctype html>
 <html lang="th">
 <head>
 <meta charset="utf-8">
@@ -93,6 +93,12 @@ tr.click:hover td{background:var(--sunk)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:8px;font-size:14px;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .demo{background:var(--amber-l);color:var(--amber);font-size:13px;padding:8px 12px;border-radius:8px;line-height:1.4}
 dialog{border:none;border-radius:14px;padding:0;width:min(520px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog.wide{width:min(680px,calc(100vw - 32px))}
+.chg{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.chg table{font-size:13.5px}
+.chg td{padding:7px 10px}
+.chg .old{color:var(--muted);text-decoration:line-through}
+.fx{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:3px}
 dialog::backdrop{background:rgba(10,20,30,.45)}
 .dlg{padding:22px;display:flex;flex-direction:column;gap:14px}
 .dlg h2{margin:0;font-size:18px}
@@ -766,9 +772,9 @@ function vDetail(cid) {
 }
 
 /* ---------------- dialogs ---------------- */
-function openDlg(html, onSubmit) {
-  const d = $('#dlg'); d.innerHTML = `<form class="dlg" method="dialog">${html}<div class="errbox hidden" id="dlgErr"></div><div class="dlg-foot"><button type="button" class="btn" data-act="closeDlg">ยกเลิก</button><button class="btn pri" value="ok">บันทึก</button></div></form>`;
-  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'); if (sb.disabled) return; sb.disabled = true; sb.textContent = 'กำลังบันทึก…'; try { const r = await onSubmit(new FormData(e.target)); if (r !== false) d.close(); } catch (err) { const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; sb.textContent = 'บันทึก'; } };
+function openDlg(html, onSubmit, opt = {}) {
+  const d = $('#dlg'); d.classList.toggle('wide', !!opt.wide); d.innerHTML = `<form class="dlg" method="dialog">${html}<div class="errbox hidden" id="dlgErr"></div><div class="dlg-foot"><button type="button" class="btn" data-act="closeDlg">${opt.cancel || 'ยกเลิก'}</button><button class="btn pri" value="ok">${opt.ok || 'บันทึก'}</button></div></form>`;
+  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'); if (sb.disabled) return; sb.disabled = true; sb.textContent = 'กำลังบันทึก…'; try { const r = await onSubmit(new FormData(e.target)); if (r !== false) d.close(); } catch (err) { const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; sb.textContent = opt.ok || 'บันทึก'; } };
   d.showModal(); const first = d.querySelector('input,select,textarea'); if (first) first.focus();
 }
 function dlgStatus(cid) {
@@ -947,6 +953,51 @@ function formLive() {
   if (fu.d && fu.m) items.push(['Manual', fu.d, fu.m, 'ใหม่']);
   $('#alertPrev').innerHTML = items.length ? items.sort((a, b) => a[1] < b[1] ? -1 : 1).map(([t, d, m, tag]) => `<div class="fu" style="grid-template-columns:92px minmax(0,1fr) auto"><div class="d ${d < todayISO() ? 'late' : ''}">${fmtD(d)}</div><div>${esc(m)}</div><span class="type ${t}">${t}${tag ? ' · ' + tag : ''}</span></div>`).join('') : '<div class="hint">ยังไม่มี · ใส่วันหมดสัญญาเพื่อให้ระบบสร้างการเตือนอัตโนมัติ</div>';
 }
+function fmtVal(k, v) {
+  if (v == null || v === '') return '—';
+  if (k === 'Lease_Expiry') return fmtD(v);
+  if (DATE_F.includes(k)) return fmtD(v);
+  if (NUM_F.includes(k)) return fmtN(v);
+  return String(v);
+}
+function confirmSave(form, { cid, ex, p, row, contacts, fins, ops }) {
+  const skip = ['Company_ID', 'Industry_Category', 'Recommended_Building', 'Score_Location', 'Score_Budget', 'Score_Industry', 'Score_Talent', 'Score_Brand', 'Score_Growth', 'Score_Bonus', 'Expiry_Precision', 'WP_Fit_Score'];
+  const same = (a, b) => (a ?? '') === '' && (b ?? '') === '' || String(a) === String(b);
+  let body = '';
+  if (cid) {
+    const diff = Object.keys(row).filter(k => !skip.includes(k) && LABEL[k] && !same(ex[k], row[k]));
+    if (!same(ex.Lease_Expiry, row.Lease_Expiry) || !same(ex.Expiry_Precision, row.Expiry_Precision)) { const i = diff.indexOf('Lease_Expiry'); if (i < 0) diff.push('Lease_Expiry'); }
+    if (!same(ex.WP_Fit_Score, row.WP_Fit_Score)) diff.push('WP_Fit_Score');
+    const exC = S.ix.contacts[cid] || [], cf = ['Name', 'Position', 'Email', 'Phone', 'Role_in_Deal', 'Is_Primary'];
+    const cAdd = contacts.filter(c => !c.Contact_ID && (c.Name || c.Email)).length, cDel = exC.filter(c => !contacts.some(x => x.Contact_ID === c.Contact_ID)).length;
+    const cMod = contacts.filter(c => c.Contact_ID && cf.some(f => !same((exC.find(x => x.Contact_ID === c.Contact_ID) || {})[f], c[f]))).length;
+    const exF = S.ix.fin[cid] || [], ff = ['FS_Year', 'Revenue', 'Net_Profit', 'Total_Assets', 'Total_Liabilities', 'Current_Assets', 'Current_Liabilities'];
+    const fAdd = fins.filter(f => !f.Fin_ID && ff.some(k => f[k] != null)).length, fDel = exF.filter(f => !fins.some(x => x.Fin_ID === f.Fin_ID)).length;
+    const fMod = fins.filter(f => f.Fin_ID && ff.some(k => !same((exF.find(x => x.Fin_ID === f.Fin_ID) || {})[k], f[k]))).length;
+    const sub = [cAdd && `เพิ่มผู้ติดต่อ ${cAdd} คน`, cMod && `แก้ผู้ติดต่อ ${cMod} คน`, cDel && `ลบผู้ติดต่อ ${cDel} คน`, fAdd && `เพิ่มงบ ${fAdd} ปี`, fMod && `แก้งบ ${fMod} ปี`, fDel && `ลบงบ ${fDel} ปี`].filter(Boolean);
+    const fuNew = ops.some(o => o.sheet === 'Actions' && o.op === 'insert' && o.row.Action_Type === 'Manual');
+    if (!diff.length && !sub.length && !fuNew) { toast('ไม่มีข้อมูลที่เปลี่ยนแปลง'); return; }
+    body = diff.length ? `<div class="chg"><table><thead><tr><th>ช่อง</th><th>เดิม</th><th>ใหม่</th></tr></thead><tbody>${diff.map(k => `<tr><td>${esc(LABEL[k])}</td><td class="old">${esc(k === 'Lease_Expiry' ? fmtExpiry(ex) || '—' : fmtVal(k, ex[k]))}</td><td><b>${esc(k === 'Lease_Expiry' ? fmtExpiry(row) || '—' : fmtVal(k, row[k]))}</b></td></tr>`).join('')}</tbody></table></div>` : '';
+    if (sub.length) body += `<div style="font-size:14px">${sub.map(esc).join(' · ')}</div>`;
+  } else {
+    const kv = [['ชื่อบริษัท', p.Company_Name], ['สถานะ', p.Pipeline_Status], ['Sales Owner', p.Sales_Owner], ['ผู้ติดต่อ', contacts.filter(c => c.Name).map(c => c.Name).join(', ')], ['โซน', p.Current_Zone], ['วันหมดสัญญา', fmtExpiry(row)], ['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + ' sqm' : ''], ['WP Fit Score', p.WP_Fit_Score != null ? p.WP_Fit_Score + (p.Recommended_Building ? ' · แนะนำ ' + p.Recommended_Building : '') : '']].filter(([, v]) => v);
+    body = `<dl class="kv">${kv.map(([l, v]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+  }
+  const fx = [];
+  ops.filter(o => o.sheet === 'Actions').forEach(o => {
+    if (o.op === 'insert') fx.push(`${o.row.Action_Type === 'Auto' ? 'สร้างการเตือนอัตโนมัติ' : 'ตั้ง follow-up'} วันที่ <b>${fmtD(o.row.Due_Date)}</b> ถึง ${esc(o.row.Assigned_To || '-')}`);
+    else if (o.row.Status === 'Cancelled') fx.push(`ยกเลิก follow-up ที่ค้าง: ${esc(((S.data.actions.find(a => a.Action_ID === o.row.Action_ID) || {}).Message) || o.row.Action_ID)}`);
+    else if (o.row.Due_Date) fx.push(`เลื่อนการเตือนอัตโนมัติเป็น <b>${fmtD(o.row.Due_Date)}</b>`);
+  });
+  if (cid && ex.Pipeline_Status !== p.Pipeline_Status) fx.unshift(`บันทึกประวัติเปลี่ยนสถานะ ${stTag(ex.Pipeline_Status)} → ${stTag(p.Pipeline_Status)}`);
+  if (!cid) fx.push('บันทึกประวัติ "สร้างรายการใหม่"');
+  openDlg(`<h2>${cid ? 'ยืนยันการแก้ไข ' + esc(ex.Company_Name) : 'ยืนยันเพิ่ม Prospect ใหม่'}</h2>${body}${fx.length ? `<div><div class="f" style="margin-bottom:4px">ระบบจะทำให้อัตโนมัติ</div><ul class="fx">${fx.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}`,
+    async () => {
+      const sb = $('#dlg button[value="ok"]');
+      const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว', () => { sb.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; });
+      location.hash = '#/p/' + (cid || map['$C']);
+    }, { ok: 'ยืนยันบันทึก', cancel: 'กลับไปแก้ไข', wide: true });
+}
 async function saveForm(form) {
   const { p, contacts, fins, fu } = collect(form), cid = form.dataset.id, ex = form._ex;
   const errs = [];
@@ -974,9 +1025,9 @@ async function saveForm(form) {
   if (fu.d && fu.m) ops.push({ sheet: 'Actions', op: 'insert', row: { Action_ID: '$fu', Company_ID: id, Action_Type: 'Manual', Due_Date: fu.d, Message: fu.m, Assigned_To: fu.to, Status: 'Pending' } });
   if (!cid) ops.push({ sheet: 'Activity_Log', op: 'insert', row: { Log_ID: '$l', Company_ID: id, Log_Type: 'Created', To_Status: p.Pipeline_Status, Detail: 'สร้างรายการใหม่' } });
   else if (ex.Pipeline_Status !== p.Pipeline_Status) { ops.push({ sheet: 'Activity_Log', op: 'insert', row: { Log_ID: '$l', Company_ID: id, Log_Type: 'Status Change', From_Status: ex.Pipeline_Status, To_Status: p.Pipeline_Status, Detail: p.Pipeline_Status === 'Lost' ? 'เหตุผล: ' + p.Lost_Reason : '' } }); ops.push(...statusSideOps(cid, p.Pipeline_Status).filter(o => !ops.some(x => x.row.Action_ID === o.row.Action_ID))); }
-  const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
-  try { const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว', () => { btn.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; }); location.hash = '#/p/' + (cid || map['$C']); }
-  catch (e) { eb.textContent = 'บันทึกไม่สำเร็จ: ' + e.message; eb.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'บันทึก'; }
+  confirmSave(form, { cid, ex, p, row, contacts, fins, ops });
+
+
 }
 
 /* ---------------- alerts ---------------- */
