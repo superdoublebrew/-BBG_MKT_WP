@@ -359,18 +359,33 @@ const pendingOf = cid => (S.ix.actions[cid] || []).filter(a => a.Status === 'Pen
 const nextFU = cid => pendingOf(cid)[0];
 const isMine = a => !S.user.owner || a === S.user.owner;
 
-async function api(action, payload) {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function getJSON(url) {
   let r;
-  try {
-    r = action === 'bootstrap'
-      ? await fetch(API_URL + '?action=bootstrap' + (S.token ? '&token=' + encodeURIComponent(S.token) : ''))
-      : await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: S.token, payload }) });
-  } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+  try { r = await fetch(url); } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+  try { return await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (HTTP ' + r.status + ') ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด'); }
+}
+async function api(action, payload) {
+  const tok = S.token ? '&token=' + encodeURIComponent(S.token) : '';
   let j;
-  try { j = await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (HTTP ' + r.status + ') ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด'); }
-  if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(j.error); }
-  if (action === 'bootstrap' && !j.data) throw new Error('API ตอบกลับแต่ไม่มีข้อมูล — Apps Script อาจยังเป็นโค้ดเวอร์ชันเก่า (Deploy → Manage deployments → New version)');
-  if (action === 'save' && !j.idMap) throw new Error('บันทึกไม่สำเร็จ: API ไม่ได้รับคำขอบันทึก (ได้: ' + (j.message || 'ไม่ทราบ') + ')');
+  if (action === 'bootstrap') {
+    j = await getJSON(API_URL + '?action=bootstrap' + tok);
+    if (j.ok && !j.data) throw new Error('API ตอบกลับแต่ไม่มีข้อมูล — Apps Script อาจยังเป็นโค้ดเวอร์ชันเก่า (Deploy → Manage deployments → New version)');
+  } else {
+    // ส่งข้อมูลแบบไม่รอคำตอบ (Google ส่งคำตอบของ POST กลับมาไม่ได้) แล้วถามผลด้วย GET
+    const reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    const body = JSON.stringify({ action, token: S.token, payload, reqId });
+    try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
+    catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+    for (let i = 0; i < 12 && !(j && j.ready); i++) {
+      if (i) await sleep(Math.min(500 * i, 2000));
+      j = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
+      if (!j.ok) break;
+    }
+    if (j.ok && !j.ready) throw new Error('ส่งข้อมูลแล้วแต่ยังไม่ได้รับการยืนยัน กรุณารีเฟรชหน้าเพื่อตรวจว่าบันทึกแล้วหรือยัง ก่อนกดบันทึกซ้ำ');
+    if (j.ok) j = j.result;
+  }
+  if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(String(j.error).replace(/^CONFLICT:\s*/, '')); }
   return j;
 }
 async function loadData() {
@@ -400,10 +415,10 @@ function applyOpsLocal(ops) {
   });
   return idMap;
 }
-async function commit(ops, msg) {
+async function commit(ops, msg, onSaved) {
   let idMap;
   if (DEMO) { idMap = applyOpsLocal(ops); reindex(); }
-  else { const j = await api('save', { ops }); idMap = j.idMap || {}; await loadData(); }
+  else { const j = await api('save', { ops }); idMap = j.idMap || {}; if (onSaved) onSaved(); await loadData(); }
   if (msg) toast(msg);
   return idMap;
 }
@@ -827,7 +842,7 @@ function vForm(cid) {
   const y0 = new Date().getFullYear();
   const secs = [['s1', 'บริษัทและสถานะ'], ['s2', 'ผู้ติดต่อ'], ['s3', 'สัญญาปัจจุบัน'], ['s4', 'ความต้องการ'], ['s5', 'WP Fit Score'], ['s6', 'Follow-up'], ['s7', 'งบการเงินและหมายเหตุ']];
   shell(cid ? 'list' : 'new', `
-  <div class="topline"><div><h1>${cid ? 'แก้ไข ' + esc(p.Company_Name) : 'เพิ่ม Prospect ใหม่'}</h1><div class="sub">ช่องที่มี <span class="req">*</span> จำเป็นต้องกรอก · Sales Owner: <b>${esc(p.Sales_Owner || '')}</b></div></div></div>
+  <div class="topline"><div><h1>${cid ? 'แก้ไข ' + esc(p.Company_Name) : 'เพิ่ม Prospect ใหม่'}</h1><div class="sub">ช่องที่มี <span class="req">*</span> จำเป็นต้องกรอก · Sales Owner: <b id="ownerSub">${esc(p.Sales_Owner || '')}</b></div></div></div>
   <div class="errbox hidden" id="formErr" style="margin-bottom:14px" role="alert"></div>
   <form id="pform" class="flay" novalidate data-id="${cid || ''}">
     <nav class="fnav" aria-label="ส่วนของฟอร์ม">${secs.map(([id, l]) => `<a href="#${id}" data-act="jump" data-v="${id}">${l}</a>`).join('')}</nav>
@@ -918,6 +933,7 @@ function formLive() {
   const form = $('#pform'); if (!form) return;
   const { p, fu } = collect(form);
   $('#indAuto').textContent = p.Industry_Category || '—';
+  if ($('#ownerSub')) $('#ownerSub').textContent = p.Sales_Owner || '';
   $('#lostF').classList.toggle('hidden', p.Pipeline_Status !== 'Lost');
   $('#agentF').classList.toggle('hidden', p.Source !== 'Agent');
   const n = norm(p.Company_Name), cid = form.dataset.id;
@@ -959,7 +975,7 @@ async function saveForm(form) {
   if (!cid) ops.push({ sheet: 'Activity_Log', op: 'insert', row: { Log_ID: '$l', Company_ID: id, Log_Type: 'Created', To_Status: p.Pipeline_Status, Detail: 'สร้างรายการใหม่' } });
   else if (ex.Pipeline_Status !== p.Pipeline_Status) { ops.push({ sheet: 'Activity_Log', op: 'insert', row: { Log_ID: '$l', Company_ID: id, Log_Type: 'Status Change', From_Status: ex.Pipeline_Status, To_Status: p.Pipeline_Status, Detail: p.Pipeline_Status === 'Lost' ? 'เหตุผล: ' + p.Lost_Reason : '' } }); ops.push(...statusSideOps(cid, p.Pipeline_Status).filter(o => !ops.some(x => x.row.Action_ID === o.row.Action_ID))); }
   const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
-  try { const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว'); location.hash = '#/p/' + (cid || map['$C']); }
+  try { const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว', () => { btn.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; }); location.hash = '#/p/' + (cid || map['$C']); }
   catch (e) { eb.textContent = 'บันทึกไม่สำเร็จ: ' + e.message; eb.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'บันทึก'; }
 }
 
