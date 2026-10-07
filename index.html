@@ -469,19 +469,31 @@ async function api(action, payload) {
     j = await getJSON(API_URL + '?action=bootstrap' + tok);
     if (j.ok && !j.data) throw new Error('API ตอบกลับแต่ไม่มีข้อมูล — Apps Script อาจยังเป็นโค้ดเวอร์ชันเก่า (Deploy → Manage deployments → New version)');
   } else {
-    // ส่งข้อมูลแบบไม่รอคำตอบ (Google ส่งคำตอบของ POST กลับมาไม่ได้) แล้วถามผลด้วย GET
     const reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     const body = JSON.stringify({ action, token: S.token, payload, reqId });
-    try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
-    catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
-    const t0 = Date.now();
-    for (let i = 0; Date.now() - t0 < 60000 && !(j && j.ready); i++) {
-      if (i) await sleep(600);   // ถามผลแบบคงที่ จนครบ 60 วินาที
-      j = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
-      if (!j.ok) break;
+    // วิธีหลัก: ส่งแล้วอ่านผลจากคำตอบเลย (1 คำขอ ไม่ต้องถามผลซ้ำ)
+    let direct = null, sent = false;
+    try {
+      const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
+      sent = true;
+      if (r.ok) { try { direct = await r.json(); } catch (e) { } }
+    } catch (e) { }
+    if (direct) j = direct;
+    else {
+      // สำรอง: ถ้าอ่านคำตอบไม่ได้ ระบบจะไม่ส่งซ้ำ (กันบันทึกซ้ำ) แต่ถามผลด้วยรหัสคำขอเดิม
+      if (!sent) {
+        try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
+        catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
+      }
+      const t0 = Date.now(); let p = null;
+      for (let i = 0; Date.now() - t0 < 60000 && !(p && p.ready); i++) {
+        if (i) await sleep(Math.min(1000 + 500 * i, 4000));
+        p = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
+        if (!p.ok) break;
+      }
+      if (p.ok && !p.ready) throw new Error('ส่งข้อมูลแล้วแต่ยังไม่ได้รับการยืนยันภายใน 1 นาที ระบบอาจยังทำงานอยู่ กรุณารอสักครู่แล้วรีเฟรชหน้าเพื่อตรวจว่าบันทึกแล้วหรือยัง ก่อนกดบันทึกซ้ำ');
+      j = p.ok ? p.result : p;
     }
-    if (j.ok && !j.ready) throw new Error('ส่งข้อมูลแล้วแต่ยังไม่ได้รับการยืนยันภายใน 1 นาที ระบบอาจยังทำงานอยู่ กรุณารอสักครู่แล้วรีเฟรชหน้าเพื่อตรวจว่าบันทึกแล้วหรือยัง ก่อนกดบันทึกซ้ำ');
-    if (j.ok) j = j.result;
   }
   if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(String(j.error).replace(/^CONFLICT:\s*/, '')); }
   return j;
@@ -1018,7 +1030,8 @@ function vDetail(cid) {
 /* ---------------- dialogs ---------------- */
 function openDlg(html, onSubmit, opt = {}) {
   const d = $('#dlg'); d.classList.toggle('wide', !!opt.wide); d.innerHTML = `<form class="dlg" method="dialog">${html}<div class="errbox hidden" id="dlgErr"></div><div class="dlg-foot"><button type="button" class="btn" data-act="closeDlg">${opt.cancel || 'ยกเลิก'}</button><button class="btn pri" value="ok">${opt.ok || 'บันทึก'}</button></div></form>`;
-  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'); if (sb.disabled) return; sb.disabled = true; sb.textContent = 'กำลังบันทึก…'; try { const r = await onSubmit(new FormData(e.target)); if (r !== false) d.close(); } catch (err) { const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; sb.textContent = opt.ok || 'บันทึก'; } };
+  d.oncancel = e => { if (d.dataset.busy) e.preventDefault(); };   // กำลังบันทึก → ปิดกล่องไม่ได้ กันกดซ้ำ
+  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'), cb = e.target.querySelector('[data-act="closeDlg"]'); if (sb.disabled) return; sb.disabled = true; cb.disabled = true; d.dataset.busy = '1'; sb.textContent = 'กำลังบันทึก… กรุณารอ'; try { const r = await onSubmit(new FormData(e.target)); delete d.dataset.busy; if (r !== false) d.close(); } catch (err) { delete d.dataset.busy; const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; cb.disabled = false; sb.textContent = opt.ok || 'บันทึก'; } };
   d.showModal(); const first = d.querySelector('input,select,textarea'); if (first) first.focus();
 }
 function dlgStatus(cid) {
