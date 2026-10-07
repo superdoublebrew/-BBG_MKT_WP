@@ -467,12 +467,13 @@ async function api(action, payload) {
     const body = JSON.stringify({ action, token: S.token, payload, reqId });
     try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
     catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
-    for (let i = 0; i < 45 && !(j && j.ready); i++) {
-      if (i) await sleep(400);   // ถามผลถี่ๆ แบบคงที่ (รวมสูงสุด ~18 วินาที)
+    const t0 = Date.now();
+    for (let i = 0; Date.now() - t0 < 60000 && !(j && j.ready); i++) {
+      if (i) await sleep(400);   // ถามผลถี่ๆ แบบคงที่ จนครบ 60 วินาที
       j = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
       if (!j.ok) break;
     }
-    if (j.ok && !j.ready) throw new Error('ส่งข้อมูลแล้วแต่ยังไม่ได้รับการยืนยัน กรุณารีเฟรชหน้าเพื่อตรวจว่าบันทึกแล้วหรือยัง ก่อนกดบันทึกซ้ำ');
+    if (j.ok && !j.ready) throw new Error('ส่งข้อมูลแล้วแต่ยังไม่ได้รับการยืนยันภายใน 1 นาที ระบบอาจยังทำงานอยู่ กรุณารอสักครู่แล้วรีเฟรชหน้าเพื่อตรวจว่าบันทึกแล้วหรือยัง ก่อนกดบันทึกซ้ำ');
     if (j.ok) j = j.result;
   }
   if (!j.ok) { if (String(j.error).startsWith('AUTH')) { signOut(j.error); } throw new Error(String(j.error).replace(/^CONFLICT:\s*/, '')); }
@@ -526,12 +527,12 @@ function applyRows(rows) {
   });
 }
 /** ดึงข้อมูลล่าสุด (รวมที่คนอื่นแก้) แบบเบื้องหลัง ไม่ให้ผู้ใช้รอ */
-function refreshLater() {
+function refreshLater(ms = 1500) {
   const g = _gen;
   setTimeout(async () => {
     if (g !== _gen) return;
     try { const j = await api('bootstrap'); if (g !== _gen || !S.data) return; Object.assign(S.data, j.data); S.user = j.user; reindex(); } catch (e) { }
-  }, 1500);
+  }, ms);
 }
 
 /* ---------------- business rules ---------------- */
@@ -1574,10 +1575,10 @@ async function cfgSave() {
   const errs = cfgValidate();
   if (errs.length) { openDlg(`<h2>ยังบันทึกไม่ได้</h2><ul class="fx">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`, async () => { }, { ok: 'ตกลง' }); return; }
   const ch = cfgChanges();
-  openDlg(`<h2>ยืนยันบันทึกการตั้งค่า</h2><ul class="fx">${ch.map(c => `<li>${esc(c)}</li>`).join('') || '<li>แก้ไขค่า</li>'}</ul><p class="hint" style="margin:0">ระบบจะอัปเดตข้อมูลที่เกี่ยวข้องให้อัตโนมัติ อาจใช้เวลาประมาณ 10–30 วินาที</p>`, async () => {
+  openDlg(`<h2>ยืนยันบันทึกการตั้งค่า</h2><ul class="fx">${ch.map(c => `<li>${esc(c)}</li>`).join('') || '<li>แก้ไขค่า</li>'}</ul><p class="hint" style="margin:0">ระบบจะคำนวณ Fit Score และการเตือนใหม่ให้เบื้องหลังหลังบันทึก ประมาณ 10–30 วินาที (ระหว่างนั้นใช้งานต่อได้)</p>`, async () => {
     const payload = cfgPayload(), sb = $('#dlg button[value="ok"]');
     if (DEMO) applyConfigLocal(payload);
-    else { await api('config_save', payload); sb.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; await loadData(); }
+    else { await api('config_save', payload); sb.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; _gen++; await loadData(); refreshLater(30000); }
     S.cfg = Object.assign(S.cfg, { dataRef: null }); toast('บันทึกการตั้งค่าแล้ว'); vSettings();
   }, { ok: 'ยืนยันบันทึก', cancel: 'กลับไปแก้ไข', wide: true });
 }
