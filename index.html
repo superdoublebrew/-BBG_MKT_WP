@@ -262,6 +262,19 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 .resbar .count{font-size:18px;font-weight:700;margin-right:auto}
 .active-f{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .af{font-size:12.5px;background:var(--navy-l);color:var(--navy);padding:3px 8px;border-radius:6px}
+.fpanel{display:flex;flex-direction:column;gap:12px;padding:16px;margin-bottom:16px}
+.fbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fwrap{display:inline-flex;align-items:center}
+.fbtn.set{background:var(--navy-l);border-color:var(--navy);color:var(--navy)}
+.fbtn.open,.btn.open{box-shadow:0 0 0 2px var(--navy)}
+.fx-x{min-height:30px;padding:0 6px}
+.fpop{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;background:var(--sunk)}
+.fgh{font-size:12.5px;font-weight:600;color:var(--muted);margin:12px 0 6px}
+.fopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 16px}
+.fopts .chk{min-height:36px;font-size:14px}
+.fopts .n{margin-left:auto;font-size:12px;color:var(--muted)}
+.ffoot{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.colpick{max-height:min(52vh,520px);overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:0 14px 10px}
 /* detail */
 .dhead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}
 .dhead h1{margin:0 0 6px;font-size:26px;line-height:1.25}
@@ -368,10 +381,10 @@ const CLOSED = ['Lost', 'Closed Deal'];
 const TABLE = { Prospects: ['prospects', 'Company_ID', 'C'], Contacts: ['contacts', 'Contact_ID', 'P'], Financials: ['financials', 'Fin_ID', 'F'], Actions: ['actions', 'Action_ID', 'A'], Activity_Log: ['logs', 'Log_ID', 'L'] };
 const LABEL = {
   Company_ID: 'รหัส', Company_Name: 'ชื่อบริษัท', Pipeline_Status: 'สถานะ', First_Contact_Date: 'ติดต่อครั้งแรก', Sales_Owner: 'Sales Owner', Source: 'Source', Agent: 'Agent', Lost_Reason: 'เหตุผลที่ Lost',
-  Business_Category: 'Business Category', Industry_Category: 'Industry Category', Country_of_Origin: 'ประเทศต้นทาง', Year_Established: 'ปีที่ก่อตั้ง', Employees_TH: 'พนักงาน (ไทย)', Registered_Capital: 'ทุนจดทะเบียน',
+  Business_Category: 'Business Category', Industry_Category: 'Industry Category', Country_of_Origin: 'ประเทศต้นทาง', Year_Established: 'ปีที่ก่อตั้ง', Employees_TH: 'พนักงาน (ไทย)', Registered_Capital: 'ทุนจดทะเบียน', Business_Type: 'Business Type', Working_Mode: 'Working Mode',
   Has_Parent_Company: 'มีบริษัทแม่', BOI: 'BOI', Listed: 'Listed', ESG: 'ESG', Website: 'Website', LinkedIn: 'LinkedIn',
   Existing_Building: 'อาคารปัจจุบัน', Address: 'ที่อยู่', Current_Zone: 'โซนปัจจุบัน', Current_Area_sqm: 'พื้นที่ปัจจุบัน (sqm)', Occupied_Since: 'เช่าตั้งแต่', Lease_Expiry: 'วันหมดสัญญา', Expiry_Precision: 'ความแม่นยำวันหมดสัญญา',
-  Required_Area_Min: 'พื้นที่ต้องการ ตั้งแต่', Required_Area_Max: 'พื้นที่ต้องการ ถึง', Business_Growth: 'Business Growth', Expansion: 'ขยายพื้นที่', Expansion_sqm: 'ขยาย (sqm)',
+  Required_Area_Min: 'พื้นที่ต้องการ ตั้งแต่', Required_Area_Max: 'พื้นที่ต้องการ ถึง', Office_Size: 'Size', Business_Growth: 'Business Growth', Expansion: 'ขยายพื้นที่', Expansion_sqm: 'ขยาย (sqm)',
   Target_Building_1: 'อาคารเป้าหมาย 1', Target_Building_2: 'อาคารเป้าหมาย 2', Unit_Floor_Interested: 'Unit/Floor ที่สนใจ', Est_Rental_Rate: 'ราคาเสนอ (THB/sqm)', Rental_Rate_Note: 'หมายเหตุราคา',
   Talent_Type: 'Talent', Brand_Type: 'Brand', Bonus_Ecosystem: 'Bonus Ecosystem', Bonus_Referral: 'Bonus Referral', WP_Fit_Score: 'WP Fit Score', Recommended_Building: 'อาคารที่แนะนำ', Remark: 'Remark',
   Created_At: 'สร้างเมื่อ', Updated_At: 'แก้ไขล่าสุด', Created_By: 'สร้างโดย', Updated_By: 'แก้ไขโดย'
@@ -397,8 +410,9 @@ const num = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
 const norm = s => String(s || '').toUpperCase().replace(/\(.*?\)/g, '').replace(/\b(CO|LTD|LIMITED|COMPANY|INC|CORP|CORPORATION|PUBLIC|PCL|THAILAND|THE)\b/g, '').replace(/[^A-Z0-9ก-๙]/g, '');
 const stCls = s => 'st st-' + String(s || '').replace(/\s+/g, '-');
 const stTag = s => s ? `<span class="${stCls(s)}">${esc(s)}</span>` : '';
-const lists = name => S.data.config.lists.filter(l => l.List === name && l.Active !== 'No').map(l => l.Value);
-const allLists = name => S.data.config.lists.filter(l => l.List === name).map(l => l.Value);
+const LIST_DEFAULT = { Business_Type: ['SME', 'Thai Corporation', 'MNCs'], Working_Mode: ['Full-time Office', 'WFH', 'Hybrid Work'], Office_Size: ['S', 'M', 'L'] };
+const lists = name => { const v = S.data.config.lists.filter(l => l.List === name && l.Active !== 'No').map(l => l.Value); return v.length || S.data.config.lists.some(l => l.List === name) ? v : (LIST_DEFAULT[name] || []); };
+const allLists = name => { const v = S.data.config.lists.filter(l => l.List === name).map(l => l.Value); return v.length ? v : (LIST_DEFAULT[name] || []); };
 const industryOf = biz => (S.data.config.lists.find(l => l.List === 'Business_Category' && l.Value === biz) || {}).Parent || null;
 function fmtExpiry(p) {
   if (!p.Lease_Expiry) return '';
@@ -415,7 +429,9 @@ const ICON = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-  x: '<path d="M18 6 6 18M6 6l12 12"/>'
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  columns: '<path d="M3 4h18v16H3zM9 4v16M15 4v16"/>'
 };
 const ic = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
@@ -425,6 +441,8 @@ function reindex() {
   d.prospects.forEach(p => ix.p[p.Company_ID] = p);
   const grp = (arr, key) => arr.forEach(r => (ix[key][r.Company_ID] = ix[key][r.Company_ID] || []).push(r));
   grp(d.contacts, 'contacts'); grp(d.financials, 'fin'); grp(d.actions, 'actions'); grp(d.logs, 'logs');
+  ix.finL = {};   // งบปีล่าสุดของแต่ละบริษัท
+  Object.entries(ix.fin).forEach(([cid, rs]) => { ix.finL[cid] = rs.slice().sort((a, b) => (+(b.FS_Year || b.Record_Year) || 0) - (+(a.FS_Year || a.Record_Year) || 0))[0]; });
   S.ix = ix;
 }
 const pendingOf = cid => (S.ix.actions[cid] || []).filter(a => a.Status === 'Pending').sort((a, b) => a.Due_Date < b.Due_Date ? -1 : 1);
@@ -449,8 +467,8 @@ async function api(action, payload) {
     const body = JSON.stringify({ action, token: S.token, payload, reqId });
     try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
     catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
-    for (let i = 0; i < 12 && !(j && j.ready); i++) {
-      if (i) await sleep(Math.min(500 * i, 2000));
+    for (let i = 0; i < 45 && !(j && j.ready); i++) {
+      if (i) await sleep(400);   // ถามผลถี่ๆ แบบคงที่ (รวมสูงสุด ~18 วินาที)
       j = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
       if (!j.ok) break;
     }
@@ -487,12 +505,33 @@ function applyOpsLocal(ops) {
   });
   return idMap;
 }
+let _gen = 0;
 async function commit(ops, msg, onSaved) {
   let idMap;
+  _gen++;
   if (DEMO) { idMap = applyOpsLocal(ops); reindex(); }
-  else { const j = await api('save', { ops }); idMap = j.idMap || {}; if (onSaved) onSaved(); await loadData(); }
+  else {
+    const j = await api('save', { ops }); idMap = j.idMap || {}; if (onSaved) onSaved();
+    if (j.rows) { applyRows(j.rows); reindex(); refreshLater(); }   // อัปเดตหน้าจอทันทีจากแถวที่ server เขียนจริง
+    else await loadData();                                           // Apps Script เวอร์ชันเก่า
+  }
   if (msg) toast(msg);
   return idMap;
+}
+function applyRows(rows) {
+  rows.forEach(w => {
+    const [key, idK] = TABLE[w.sheet], arr = S.data[key], i = arr.findIndex(r => r[idK] === w.row[idK]);
+    if (w.op === 'delete') { if (i >= 0) arr.splice(i, 1); }
+    else if (i >= 0) arr[i] = w.row; else arr.push(w.row);
+  });
+}
+/** ดึงข้อมูลล่าสุด (รวมที่คนอื่นแก้) แบบเบื้องหลัง ไม่ให้ผู้ใช้รอ */
+function refreshLater() {
+  const g = _gen;
+  setTimeout(async () => {
+    if (g !== _gen) return;
+    try { const j = await api('bootstrap'); if (g !== _gen || !S.data) return; Object.assign(S.data, j.data); S.user = j.user; reindex(); } catch (e) { }
+  }, 1500);
 }
 
 /* ---------------- business rules ---------------- */
@@ -608,8 +647,65 @@ function statusSideOps(cid, status) {
 }
 
 /* ---------------- filters ---------------- */
-const blankFilters = () => ({ q: '', status: [], owner: [], expYear: [], expWithin: '', curMin: '', curMax: '', reqMin: '', reqMax: '', zone: [], building: [], industry: [], source: [], fitMin: '', hasFU: '', conds: [] });
-S.filters = blankFilters();
+// ช่วงตัวเลขของตัวกรอง (แก้ช่วงได้ที่นี่) — พื้นที่ใช้ตามเกณฑ์ Budget Fit
+const M = 1e6;
+const AREA_BANDS = [['a1', '< 500 sqm', -Infinity, 500], ['a2', '500–624 sqm', 500, 625], ['a3', '625–749 sqm', 625, 750], ['a4', '750–874 sqm', 750, 875], ['a5', '875+ sqm', 875, Infinity]];
+const BANDS = {
+  reqBand: AREA_BANDS, curBand: AREA_BANDS,
+  empBand: [['e1', '< 50 คน', -Infinity, 50], ['e2', '50–199 คน', 50, 200], ['e3', '200–999 คน', 200, 1000], ['e4', '1,000+ คน', 1000, Infinity]],
+  fitBand: [['f1', '> 24 (BTE)', 25, Infinity], ['f2', '19–24 (BTB / UBCII)', 19, 25], ['f3', '< 19 (BCS / SLS)', -Infinity, 19]],
+  revBand: [['r1', '< 50 ลบ.', -Infinity, 50 * M], ['r2', '50–200 ลบ.', 50 * M, 200 * M], ['r3', '200–1,000 ลบ.', 200 * M, 1000 * M], ['r4', '1,000+ ลบ.', 1000 * M, Infinity]],
+  npBand: [['n1', 'ขาดทุน', -Infinity, 0], ['n2', 'กำไร < 10 ลบ.', 0, 10 * M], ['n3', '10–100 ลบ.', 10 * M, 100 * M], ['n4', '100+ ลบ.', 100 * M, Infinity]],
+  marginBand: [['m1', 'ติดลบ', -Infinity, 0], ['m2', '0–5%', 0, 5], ['m3', '5–15%', 5, 15], ['m4', '15%+', 15, Infinity]],
+  daBand: [['d1', '< 0.5', -Infinity, 0.5], ['d2', '0.5–1', 0.5, 1], ['d3', '1 ขึ้นไป (หนี้ ≥ สินทรัพย์)', 1, Infinity]],
+  liqBand: [['l1', '< 1', -Infinity, 1], ['l2', '1–2', 1, 2], ['l3', '2 ขึ้นไป', 2, Infinity]]
+};
+const finOf = p => S.ix.finL[p.Company_ID] || null;
+const ratioN = (a, b) => (num(a) != null && num(b)) ? num(a) / num(b) : null;
+const FIN_VAL = {
+  revBand: p => num((finOf(p) || {}).Revenue), npBand: p => num((finOf(p) || {}).Net_Profit),
+  marginBand: p => { const f = finOf(p) || {}, r = ratioN(f.Net_Profit, f.Revenue); return r == null ? null : r * 100; },
+  daBand: p => { const f = finOf(p) || {}; return ratioN(f.Total_Liabilities, f.Total_Assets); },
+  liqBand: p => { const f = finOf(p) || {}; return ratioN(f.Current_Assets, f.Current_Liabilities); }
+};
+const BAND_VAL = Object.assign({ reqBand: p => num(p.Required_Area_Min), curBand: p => num(p.Current_Area_sqm), empBand: p => num(p.Employees_TH), fitBand: p => num(p.WP_Fit_Score) }, FIN_VAL);
+const NONE = ['__none', 'ไม่ระบุ'];
+const isEmpty = v => v == null || v === '';
+const byField = f => (p, v) => v === '__none' ? isEmpty(p[f]) : p[f] === v;
+const byBand = k => (p, v) => { const x = BAND_VAL[k](p); if (v === '__none') return x == null; const b = BANDS[k].find(b => b[0] === v); return !!b && x != null && x >= b[2] && x < b[3]; };
+// ตัวกรองทั้งหมด: l = ชื่อ, g = กลุ่ม (ไม่มี = แสดงตลอด), opts = ตัวเลือก [ค่า, ชื่อ], test = เงื่อนไข, one = เลือกได้ค่าเดียว
+const FDEF = {
+  status: { l: 'สถานะ', opts: () => STATUSES.map(s => [s, s]), test: byField('Pipeline_Status') },
+  btype: { l: 'Business Type', opts: () => [...allLists('Business_Type').map(v => [v, v]), NONE], test: byField('Business_Type') },
+  size: { l: 'Size', opts: () => [...allLists('Office_Size').map(v => [v, v]), NONE], test: byField('Office_Size') },
+  owner: { l: 'Sales Owner', opts: () => [...allLists('Sales_Owner').map(v => [v, v]), NONE], test: byField('Sales_Owner') },
+  wmode: { l: 'Working Mode', g: 'บริษัท', opts: () => [...allLists('Working_Mode').map(v => [v, v]), NONE], test: byField('Working_Mode') },
+  industry: { l: 'Industry', g: 'บริษัท', opts: () => [...[...new Set(S.data.config.lists.filter(l => l.List === 'Business_Category').map(l => l.Parent))].filter(Boolean).map(v => [v, v]), NONE], test: byField('Industry_Category') },
+  country: { l: 'ประเทศต้นทาง', g: 'บริษัท', opts: () => [...allLists('Country').map(v => [v, v]), NONE], test: byField('Country_of_Origin') },
+  brand: { l: 'Brand', g: 'บริษัท', opts: () => [...allLists('Brand_Type').map(v => [v, v]), NONE], test: byField('Brand_Type') },
+  source: { l: 'Source', g: 'บริษัท', opts: () => [...allLists('Source').map(v => [v, v]), NONE], test: byField('Source') },
+  empBand: { l: 'พนักงาน', g: 'บริษัท', band: 1 },
+  reqBand: { l: 'พื้นที่ต้องการ', g: 'ความต้องการและสัญญา', band: 1 },
+  curBand: { l: 'พื้นที่ปัจจุบัน', g: 'ความต้องการและสัญญา', band: 1 },
+  zone: { l: 'โซนปัจจุบัน', g: 'ความต้องการและสัญญา', opts: () => [...allLists('Zone').map(v => [v, v]), NONE], test: byField('Current_Zone') },
+  building: { l: 'อาคารเป้าหมาย', g: 'ความต้องการและสัญญา', opts: () => [...allLists('Building').map(v => [v, v]), NONE], test: (p, v) => v === '__none' ? !p.Target_Building_1 && !p.Target_Building_2 : v === p.Target_Building_1 || v === p.Target_Building_2 },
+  expWithin: { l: 'หมดสัญญาภายใน', g: 'ความต้องการและสัญญา', one: 1, opts: () => [6, 12, 18, 24, 36].map(m => [String(m), m + ' เดือน']), test: (p, v) => { if (!p.Lease_Expiry) return false; const t = todayISO(); return p.Lease_Expiry >= t && p.Lease_Expiry <= addMonths(t, +v); } },
+  expYear: { l: 'ปีที่หมดสัญญา', g: 'ความต้องการและสัญญา', opts: () => [...[...new Set(S.data.prospects.map(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4)).filter(Boolean))].sort().map(y => [y, y]), ['__none', 'ยังไม่ทราบ']], test: (p, v) => (p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : '__none') === v },
+  fitBand: { l: 'WP Fit Score', g: 'ความต้องการและสัญญา', band: 1 },
+  fu: { l: 'Follow-up', g: 'ความต้องการและสัญญา', opts: () => [['overdue', 'เลยกำหนด'], ['pending', 'มีรายการค้าง'], ['none', 'ไม่มีรายการค้าง']], test: (p, v) => { const a = pendingOf(p.Company_ID); return v === 'overdue' ? a.some(x => x.Due_Date < todayISO()) : v === 'pending' ? a.length > 0 : !a.length; } },
+  revBand: { l: 'Revenue', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
+  npBand: { l: 'Net Profit', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
+  marginBand: { l: 'Net Margin', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
+  daBand: { l: 'D/A (หนี้สิน/สินทรัพย์)', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
+  liqBand: { l: 'Liquidity', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
+  hasFin: { l: 'มีข้อมูลงบ', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', opts: () => [['yes', 'มี'], ['no', 'ไม่มี']], test: (p, v) => (v === 'yes') === !!finOf(p) },
+  conds: { l: 'เงื่อนไขกำหนดเอง', g: 'อื่นๆ', custom: 1 }
+};
+Object.keys(FDEF).forEach(k => { const d = FDEF[k]; if (d.band) { d.opts = () => [...BANDS[k].map(b => [b[0], b[1]]), ['__none', 'ไม่มีข้อมูล']]; d.test = byBand(k); } });
+const PINNED = ['status', 'btype', 'size', 'owner'];
+const SET_KEYS = Object.keys(FDEF).filter(k => !FDEF[k].custom && !FDEF[k].one);
+const blankFilters = () => { const f = { q: '', expWithin: '', curMin: '', curMax: '', reqMin: '', reqMax: '', fitMin: '', hasFU: '', conds: [], extra: [] }; SET_KEYS.forEach(k => f[k] = []); return f; };
+S.filters = Object.assign(blankFilters(), store.get('lastFilters') || {});
 const fieldType = f => NUM_F.includes(f) ? 'num' : DATE_F.includes(f) ? 'date' : 'text';
 const OPS = { text: [['eq', 'เท่ากับ'], ['ne', 'ไม่เท่ากับ'], ['has', 'มีคำว่า'], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']], num: [['gte', '≥'], ['lte', '≤'], ['gt', '>'], ['lt', '<'], ['eq', '='], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']], date: [['year', 'ปี ค.ศ.'], ['after', 'หลังวันที่'], ['before', 'ก่อนวันที่'], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']] };
 function testCond(p, c) {
@@ -623,24 +719,22 @@ function testCond(p, c) {
   return { eq: a === b, ne: a !== b, has: a.includes(b) }[c.op];
 }
 function match(p, F = S.filters) {
-  const inSet = (arr, v) => !arr.length || arr.includes(v ?? '__none');
   if (F.q) { const q = F.q.toLowerCase(); if (![p.Company_Name, p.Existing_Building, p.Remark, p.Address, p.Company_ID].some(x => String(x || '').toLowerCase().includes(q))) return false; }
-  if (!inSet(F.status, p.Pipeline_Status) || !inSet(F.owner, p.Sales_Owner) || !inSet(F.zone, p.Current_Zone) || !inSet(F.industry, p.Industry_Category) || !inSet(F.source, p.Source)) return false;
-  if (F.expYear.length && !F.expYear.includes(p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : '__none')) return false;
-  if (F.expWithin) { if (!p.Lease_Expiry) return false; const t = todayISO(); if (p.Lease_Expiry < t || p.Lease_Expiry > addMonths(t, +F.expWithin)) return false; }
+  for (const k of SET_KEYS) { const a = F[k]; if (a && a.length && !a.some(v => FDEF[k].test(p, v))) return false; }   // ในช่องเดียวกัน = "หรือ", ต่างช่อง = "และ"
+  if (F.expWithin && !FDEF.expWithin.test(p, F.expWithin)) return false;
+  // ตัวกรองแบบเดิม (มาจากหน้าภาพรวม)
   const ca = num(p.Current_Area_sqm);
   if (F.curMin !== '' && (ca == null || ca < +F.curMin)) return false;
   if (F.curMax !== '' && (ca == null || ca > +F.curMax)) return false;
   const rmin = num(p.Required_Area_Min), rmax = num(p.Required_Area_Max);
   if (F.reqMin !== '' && (rmin == null || (rmax ?? Infinity) < +F.reqMin)) return false;
   if (F.reqMax !== '' && (rmin == null || rmin > +F.reqMax)) return false;
-  if (F.building.length && !F.building.some(b => b === p.Target_Building_1 || b === p.Target_Building_2)) return false;
   if (F.fitMin !== '' && !(num(p.WP_Fit_Score) >= +F.fitMin)) return false;
   if (F.hasFU === 'overdue' && !pendingOf(p.Company_ID).some(a => a.Due_Date < todayISO())) return false;
   if (!F.conds.every(c => testCond(p, c))) return false;
   return true;
 }
-function goList(patch) { S.filters = Object.assign(blankFilters(), patch); location.hash = '#/list'; if (location.hash === '#/list') route(); }
+function goList(patch) { S.fopen = null; S.filters = Object.assign(blankFilters(), patch); location.hash = '#/list'; if (location.hash === '#/list') route(); }
 
 /* ---------------- shell ---------------- */
 const NAV = [['dashboard', 'ภาพรวม', 'dash'], ['list', 'ค้นหา Prospect', 'list'], ['new', 'เพิ่ม Prospect', 'plus'], ['alerts', 'Follow-up', 'bell'], ['settings', 'ตั้งค่า', 'gear']];
@@ -731,34 +825,64 @@ function fuRow(a) {
 
 /* ---------------- list ---------------- */
 function vList() {
-  const F = S.filters, P = S.data.prospects;
-  const years = [...new Set(P.map(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4)).filter(Boolean))].sort();
-  const chipG = (key, opts, label) => `<div class="fgroup"><span class="lbl" id="lb-${key}">${label}</span><div class="chips" role="group" aria-labelledby="lb-${key}">${opts.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<button class="chip" data-act="fchip" data-k="${key}" data-v="${esc(v)}" aria-pressed="${F[key].includes(v)}">${esc(l)}</button>`; }).join('')}</div></div>`;
   const saved = store.get('savedFilters') || [];
-  const fields = Object.keys(LABEL).filter(k => !['Company_ID'].includes(k));
   shell('list', `
   <div class="topline"><h1>ค้นหา Prospect</h1>${can('edit') ? '<a class="btn pri" href="#/new">เพิ่ม Prospect</a>' : ''}</div>
-  <div class="lay">
-    <aside class="panel filters" aria-label="ตัวกรอง">
-      <label class="f">ค้นหา<input class="in" data-f="q" value="${esc(F.q)}" placeholder="ชื่อบริษัท อาคาร หรือหมายเหตุ"></label>
-      ${saved.length ? `<div class="fgroup"><span class="lbl">ชุดตัวกรองที่บันทึกไว้</span><div class="chips">${saved.map((s, i) => `<span style="display:inline-flex"><button class="chip" data-act="loadSaved" data-i="${i}">${esc(s.name)}</button><button class="btn ghost sm" data-act="delSaved" data-i="${i}" aria-label="ลบ ${esc(s.name)}">${ic('x').replace('<svg', '<svg width="14" height="14"')}</button></span>`).join('')}</div></div>` : ''}
-      ${chipG('expYear', [...years, ['__none', 'ยังไม่ทราบ']], 'ปีที่หมดสัญญา')}
-      <label class="f">หรือ หมดสัญญาภายใน<select class="in" data-f="expWithin"><option value="">ไม่กำหนด</option>${[6, 12, 18, 24, 36].map(m => `<option value="${m}" ${F.expWithin == m ? 'selected' : ''}>${m} เดือน</option>`).join('')}</select></label>
-      <div class="fgroup"><span class="lbl">พื้นที่เช่าปัจจุบัน (sqm)</span><div class="range"><input class="in" data-f="curMin" inputmode="numeric" placeholder="ตั้งแต่" aria-label="พื้นที่ปัจจุบัน ตั้งแต่" value="${esc(F.curMin)}"><input class="in" data-f="curMax" inputmode="numeric" placeholder="ถึง" aria-label="พื้นที่ปัจจุบัน ถึง" value="${esc(F.curMax)}"></div></div>
-      <div class="fgroup"><span class="lbl">พื้นที่ที่ต้องการ (sqm)</span><div class="range"><input class="in" data-f="reqMin" inputmode="numeric" placeholder="ตั้งแต่" aria-label="พื้นที่ต้องการ ตั้งแต่" value="${esc(F.reqMin)}"><input class="in" data-f="reqMax" inputmode="numeric" placeholder="ถึง" aria-label="พื้นที่ต้องการ ถึง" value="${esc(F.reqMax)}"></div></div>
-      ${chipG('zone', [...allLists('Zone'), ['__none', 'ไม่ระบุ']], 'โซนปัจจุบัน')}
-      ${chipG('status', STATUSES, 'สถานะ')}
-      ${chipG('owner', allLists('Sales_Owner'), 'Sales Owner')}
-      ${chipG('building', allLists('Building'), 'อาคารเป้าหมาย')}
-      ${chipG('industry', [...new Set(S.data.config.lists.filter(l => l.List === 'Business_Category').map(l => l.Parent))], 'Industry')}
-      ${chipG('source', allLists('Source'), 'Source')}
-      <label class="f">WP Fit Score ขั้นต่ำ<input class="in" data-f="fitMin" inputmode="numeric" value="${esc(F.fitMin)}" placeholder="เช่น 19"></label>
-      <div class="fgroup"><span class="lbl">เงื่อนไขเพิ่มเติม (ทุกช่อง)</span><div id="conds" class="grid" style="gap:8px">${F.conds.map((c, i) => condHTML(c, i, fields)).join('')}</div><button class="btn sm" data-act="addCond">+ เพิ่มเงื่อนไข</button></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="clearF">ล้างตัวกรอง</button><button class="btn sm" data-act="saveF">บันทึกชุดนี้</button></div>
-    </aside>
-    <section id="results"></section>
-  </div>`);
-  renderResults();
+  <section class="panel fpanel" aria-label="ตัวกรอง">
+    <input class="in" data-f="q" value="${esc(S.filters.q)}" placeholder="ค้นหาชื่อบริษัท อาคาร หรือหมายเหตุ" aria-label="ค้นหา">
+    ${saved.length ? `<div class="fbar"><span class="hint">มุมมองที่บันทึกไว้</span>${saved.map((s, i) => `<span style="display:inline-flex"><button class="chip" data-act="loadSaved" data-i="${i}">${esc(s.name)}${s.cols ? ' ' + ic('columns').replace('<svg', '<svg width="13" height="13"') : ''}</button><button class="btn ghost sm" data-act="delSaved" data-i="${i}" aria-label="ลบ ${esc(s.name)}">${ic('x').replace('<svg', '<svg width="14" height="14"')}</button></span>`).join('')}</div>` : ''}
+    <div class="fbar" id="fbar"></div>
+    <div id="fpop"></div>
+  </section>
+  <section id="results"></section>`);
+  renderFilterBar(); renderPop(); renderResults();
+}
+const fActive = k => FDEF[k].custom ? S.filters.conds.length > 0 : FDEF[k].one ? !!S.filters[k] : S.filters[k].length > 0;
+function fSummary(k) {
+  const d = FDEF[k];
+  if (d.custom) return d.l + (S.filters.conds.length ? ' (' + S.filters.conds.length + ')' : '');
+  const vals = d.one ? (S.filters[k] ? [S.filters[k]] : []) : S.filters[k];
+  if (!vals.length) return d.l;
+  const opts = d.opts(), name = v => (opts.find(o => o[0] === v) || [v, v])[1];
+  return d.l + ': ' + (vals.length <= 2 ? vals.map(name).join(', ') : name(vals[0]) + ' +' + (vals.length - 1));
+}
+function renderFilterBar() {
+  const F = S.filters, el = $('#fbar'); if (!el) return;
+  const keys = [...PINNED, ...Object.keys(FDEF).filter(k => !PINNED.includes(k) && (F.extra.includes(k) || fActive(k)))];
+  const x = ic('x').replace('<svg', '<svg width="13" height="13"');
+  const legacy = [];   // ตัวกรองที่ส่งมาจากหน้าภาพรวม
+  if (F.fitMin) legacy.push(['fitMin', 'Fit ≥ ' + F.fitMin]);
+  if (F.hasFU) legacy.push(['hasFU', 'Follow-up เลยกำหนด']);
+  if (F.curMin || F.curMax) legacy.push(['cur', `พื้นที่ปัจจุบัน ${F.curMin || '0'}–${F.curMax || '∞'} sqm`]);
+  if (F.reqMin || F.reqMax) legacy.push(['req', `พื้นที่ต้องการ ${F.reqMin || '0'}–${F.reqMax || '∞'} sqm`]);
+  el.innerHTML = keys.map(k => `<span class="fwrap"><button class="chip fbtn ${fActive(k) ? 'set' : ''} ${S.fopen === k ? 'open' : ''}" data-act="fopen" data-k="${k}" aria-expanded="${S.fopen === k}">${esc(fSummary(k))} ${ic('chev').replace('<svg', '<svg width="13" height="13"')}</button>${PINNED.includes(k) ? '' : `<button class="btn ghost sm fx-x" data-act="frm" data-k="${k}" aria-label="เอาตัวกรอง ${esc(FDEF[k].l)} ออก">${x}</button>`}</span>`).join('')
+    + legacy.map(([k, l]) => `<span class="fwrap"><span class="chip fbtn set">${esc(l)}</span><button class="btn ghost sm fx-x" data-act="frmLegacy" data-k="${k}" aria-label="เอาตัวกรอง ${esc(l)} ออก">${x}</button></span>`).join('')
+    + `<button class="btn sm ${S.fopen === '+' ? 'open' : ''}" data-act="fopen" data-k="+" aria-expanded="${S.fopen === '+'}">+ เพิ่ม filter</button>
+       <span style="margin-left:auto;display:flex;gap:6px"><button class="btn ghost sm" data-act="clearF">ล้างทั้งหมด</button><button class="btn ghost sm" data-act="saveF">บันทึกมุมมอง</button></span>`;
+}
+function renderPop() {
+  const el = $('#fpop'); if (!el) return;
+  const k = S.fopen, F = S.filters;
+  if (!k) { el.innerHTML = ''; return; }
+  if (k === '+') {
+    const groups = {};
+    Object.keys(FDEF).filter(x => FDEF[x].g && !F.extra.includes(x) && !fActive(x)).forEach(x => (groups[FDEF[x].g] = groups[FDEF[x].g] || []).push(x));
+    el.innerHTML = `<div class="fpop">${Object.entries(groups).map(([g, ks]) => `<div class="fgh">${esc(g)}</div><div class="chips">${ks.map(x => `<button class="chip" data-act="fpick" data-k="${x}">${esc(FDEF[x].l)}</button>`).join('')}</div>`).join('') || '<div class="hint">เพิ่มครบทุกตัวกรองแล้ว</div>'}</div>`;
+    return;
+  }
+  const d = FDEF[k];
+  if (d.custom) {
+    const fields = Object.keys(LABEL).filter(f => f !== 'Company_ID');
+    el.innerHTML = `<div class="fpop"><div class="fgh" style="margin-top:0">${esc(d.l)} · ใช้กรองค่าเจาะจง เช่น พื้นที่ ≥ 800 (ทุกเงื่อนไขต้องตรง)</div><div id="conds" class="grid" style="gap:8px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${F.conds.map((c, i) => condHTML(c, i, fields)).join('')}</div>
+      <div class="ffoot"><button class="btn sm" data-act="addCond">+ เพิ่มเงื่อนไข</button><span style="flex:1"></span><button class="btn sm pri" data-act="fdone">เสร็จ</button></div></div>`;
+    return;
+  }
+  // นับจำนวนบริษัทของแต่ละตัวเลือก (คิดจากตัวกรองอื่นที่ใช้อยู่)
+  const base = S.data.prospects.filter(p => match(p, Object.assign({}, F, { [k]: d.one ? '' : [] })));
+  const cur = d.one ? [F[k]] : F[k];
+  el.innerHTML = `<div class="fpop"><div class="fgh" style="margin-top:0">${esc(d.l)} · ${d.one ? 'เลือก 1 ค่า' : 'เลือกได้หลายค่า'}</div>
+    <div class="fopts">${d.opts().map(([v, l]) => `<label class="chk"><input type="${d.one ? 'radio' : 'checkbox'}" name="fo_${k}" data-fopt="${k}" value="${esc(v)}" ${cur.includes(v) ? 'checked' : ''}> <span>${esc(l)}</span><span class="n">${base.filter(p => d.test(p, v)).length}</span></label>`).join('')}</div>
+    <div class="ffoot"><button class="btn ghost sm" data-act="fclr" data-k="${k}">ล้างตัวกรองนี้</button><span style="flex:1"></span><button class="btn sm pri" data-act="fdone">เสร็จ</button></div></div>`;
 }
 function condHTML(c, i, fields) {
   const t = fieldType(c.field);
@@ -768,37 +892,81 @@ function condHTML(c, i, fields) {
   ${['empty', 'filled'].includes(c.op) ? '' : `<input class="in" data-cond="value" aria-label="ค่า" type="${t === 'date' && c.op !== 'year' ? 'date' : 'text'}" value="${esc(c.value)}">`}</div>`;
 }
 function renderResults() {
-  const F = S.filters, rows = S.data.prospects.filter(p => match(p)), { k, d } = S.sort;
+  const rows = S.data.prospects.filter(p => match(p)), { k, d } = S.sort;
+  store.set('lastFilters', S.filters);
   const val = p => k === '_fu' ? (nextFU(p.Company_ID) || {}).Due_Date || '9999' : p[k];
   rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'th')) * d; });
   S.lastRows = rows;
-  const chips = [];
-  const add = (l, v) => chips.push(`<span class="af">${esc(l)}: ${esc(v)}</span>`);
-  if (F.q) add('ค้นหา', F.q);
-  [['expYear', 'หมดสัญญา'], ['zone', 'โซน'], ['status', 'สถานะ'], ['owner', 'Owner'], ['building', 'อาคาร'], ['industry', 'Industry'], ['source', 'Source']].forEach(([key, l]) => F[key].length && add(l, F[key].map(v => v === '__none' ? 'ไม่ระบุ' : v).join(', ')));
-  if (F.expWithin) add('หมดภายใน', F.expWithin + ' เดือน');
-  if (F.curMin || F.curMax) add('พื้นที่ปัจจุบัน', `${F.curMin || '0'}–${F.curMax || '∞'} sqm`);
-  if (F.reqMin || F.reqMax) add('พื้นที่ต้องการ', `${F.reqMin || '0'}–${F.reqMax || '∞'} sqm`);
-  if (F.fitMin) add('Fit ≥', F.fitMin);
-  if (F.hasFU) add('Follow-up', 'เลยกำหนด');
-  F.conds.forEach(c => add(LABEL[c.field], (OPS[fieldType(c.field)].find(o => o[0] === c.op) || [, ''])[1] + ' ' + (c.value || '')));
   const th = (key, l, cls = '') => `<th class="${cls}" aria-sort="${k === key ? (d > 0 ? 'ascending' : 'descending') : 'none'}"><button data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
   $('#results').innerHTML = `
-  <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span>${can('export') ? '<button class="btn sm" data-act="csv">ส่งออก CSV</button>' : ''}</div>
-  ${chips.length ? `<div class="active-f">${chips.join('')}</div>` : ''}
-  ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}</tr></thead><tbody>
-  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc(p.Industry_Category || '')}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc([p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
+  <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span>${can('export') ? '<button class="btn sm" data-act="csv">ส่งออก report</button>' : ''}</div>
+  ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Office_Size', 'Size')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}</tr></thead><tbody>
+  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc([p.Industry_Category, p.Business_Type].filter(Boolean).join(' · '))}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc(p.Office_Size || '')}</td><td>${esc([p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
   </tbody></table></div>` : `<div class="panel empty">ไม่พบบริษัทที่ตรงเงื่อนไข ลองลดตัวกรอง หรือ <button class="btn sm" data-act="clearF">ล้างตัวกรอง</button></div>`}`;
 }
-function exportCSV() {
-  const cols = Object.keys(LABEL);
-  const q = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const csv = '\ufeff' + [cols.map(c => q(LABEL[c])).join(','), ...S.lastRows.map(p => cols.map(c => q(p[c])).join(','))].join('\n');
-  if (DEMO) { toast('โหมดเดโม: ส่งออก CSV ได้ในเวอร์ชันจริง'); return; }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'prospects_' + todayISO() + '.csv'; a.click();
+
+/* ---------------- report (เลือกคอลัมน์) ---------------- */
+const RLABEL = { _nextFU: 'Follow-up ถัดไป', _finYear: 'ปีงบล่าสุด', _rev: 'Revenue', _np: 'Net Profit', _margin: 'Net Margin (%)', _da: 'D/A', _liq: 'Liquidity' };
+const COL_GROUPS = [
+  ['บริษัท', ['Company_ID', 'Company_Name', 'Business_Type', 'Working_Mode', 'Business_Category', 'Industry_Category', 'Country_of_Origin', 'Year_Established', 'Employees_TH', 'Registered_Capital', 'Has_Parent_Company', 'BOI', 'Listed', 'ESG', 'Website', 'LinkedIn']],
+  ['การขาย', ['Pipeline_Status', 'Sales_Owner', 'Source', 'Agent', 'First_Contact_Date', 'Lost_Reason', '_nextFU', 'Remark']],
+  ['สัญญาปัจจุบัน', ['Existing_Building', 'Address', 'Current_Zone', 'Current_Area_sqm', 'Occupied_Since', 'Lease_Expiry', 'Expiry_Precision']],
+  ['ความต้องการ', ['Office_Size', 'Required_Area_Min', 'Required_Area_Max', 'Business_Growth', 'Expansion', 'Expansion_sqm', 'Target_Building_1', 'Target_Building_2', 'Unit_Floor_Interested', 'Est_Rental_Rate', 'Rental_Rate_Note']],
+  ['WP Fit Score', ['WP_Fit_Score', 'Recommended_Building', 'Talent_Type', 'Brand_Type', 'Bonus_Ecosystem', 'Bonus_Referral']],
+  ['งบการเงิน (ปีล่าสุด)', ['_finYear', '_rev', '_np', '_margin', '_da', '_liq']],
+  ['ระบบ', ['Created_At', 'Created_By', 'Updated_At', 'Updated_By']]
+];
+(() => { const used = COL_GROUPS.flatMap(g => g[1]); const rest = Object.keys(LABEL).filter(k => !used.includes(k)); if (rest.length) COL_GROUPS.push(['อื่นๆ', rest]); })();
+const COL_DEFAULT = ['Company_Name', 'Business_Type', 'Pipeline_Status', 'Sales_Owner', 'Office_Size', 'Required_Area_Min', 'Required_Area_Max', 'Lease_Expiry', 'WP_Fit_Score', '_rev'];
+const colLabel = k => RLABEL[k] || LABEL[k] || k;
+const getCols = () => (store.get('reportCols') || COL_DEFAULT).filter(k => COL_GROUPS.some(g => g[1].includes(k)));
+function colVal(p, k) {
+  const f = finOf(p) || {}, r2 = x => x == null ? '' : Math.round(x * 100) / 100;
+  switch (k) {
+    case '_nextFU': { const a = nextFU(p.Company_ID); return a ? a.Due_Date + ' ' + (a.Message || '') : ''; }
+    case '_finYear': return f.FS_Year || f.Record_Year || '';
+    case '_rev': return f.Revenue ?? ''; case '_np': return f.Net_Profit ?? '';
+    case '_margin': return r2(FIN_VAL.marginBand(p)); case '_da': return r2(FIN_VAL.daBand(p)); case '_liq': return r2(FIN_VAL.liqBand(p));
+    default: return p[k];
+  }
 }
+function exportCSV() {
+  const cur = getCols(), sets = store.get('colSets') || [];
+  openDlg(`<h2>ส่งออก report · ${S.lastRows.length} บริษัท</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${sets.length ? `<select class="in" data-change="colSet" aria-label="ชุดคอลัมน์" style="max-width:240px"><option value="">ใช้ชุดคอลัมน์ที่บันทึกไว้…</option>${sets.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join('')}</select>` : ''}
+      <button type="button" class="btn sm" data-act="colAll">เลือกทั้งหมด</button><button type="button" class="btn sm" data-act="colNone">ล้าง</button><span class="hint" id="colCnt"></span>
+    </div>
+    <div class="colpick">${COL_GROUPS.map(([g, ks]) => `<div><div class="fgh">${esc(g)}</div><div class="fopts">${ks.map(k => `<label class="chk"><input type="checkbox" name="col" value="${k}" ${cur.includes(k) ? 'checked' : ''}> ${esc(colLabel(k))}</label>`).join('')}</div></div>`).join('')}</div>
+    <label class="f">บันทึกเป็นชุดคอลัมน์ (ไม่บังคับ)<input class="in" name="setname" placeholder="เช่น Sales รายสัปดาห์"></label>`,
+    async fd => {
+      const cols = COL_GROUPS.flatMap(g => g[1]).filter(k => fd.getAll('col').includes(k));
+      if (!cols.length) throw new Error('กรุณาเลือกอย่างน้อย 1 คอลัมน์');
+      store.set('reportCols', cols);
+      const name = (fd.get('setname') || '').trim();
+      if (name) { const s = (store.get('colSets') || []).filter(x => x.name !== name); s.push({ name, cols }); store.set('colSets', s); }
+      if (DEMO) { toast('โหมดเดโม: ส่งออก CSV ได้ในเวอร์ชันจริง'); return; }
+      const q = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      const csv = '\ufeff' + [cols.map(c => q(colLabel(c))).join(','), ...S.lastRows.map(p => cols.map(c => q(colVal(p, c))).join(','))].join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'prospects_' + todayISO() + '.csv'; a.click();
+      toast('ส่งออก ' + S.lastRows.length + ' บริษัท · ' + cols.length + ' คอลัมน์');
+    }, { ok: 'ส่งออก CSV', wide: true });
+  colCount();
+}
+function colCount() { const n = $$('#dlg input[name="col"]:checked').length, el = $('#colCnt'); if (el) el.textContent = 'เลือก ' + n + ' คอลัมน์'; }
 
 /* ---------------- detail ---------------- */
+const LOG_T = { Edited: 'แก้ไขข้อมูล' };
+const SUB_LABEL = { Name: 'ชื่อ', Position: 'ตำแหน่ง', Email: 'อีเมล', Phone: 'โทรศัพท์', Role_in_Deal: 'บทบาทในดีล', Is_Primary: 'ผู้ติดต่อหลัก', FS_Year: 'ปีงบ', Revenue: 'รายได้', Net_Profit: 'กำไรสุทธิ', Total_Assets: 'สินทรัพย์รวม', Total_Liabilities: 'หนี้สินรวม', Current_Assets: 'สินทรัพย์หมุนเวียน', Current_Liabilities: 'หนี้สินหมุนเวียน' };
+/** แปลงประวัติการแก้ไข "Field: เดิม → ใหม่" ให้อ่านง่าย */
+function editDetail(text) {
+  const val = v => /^\d{4}-\d{2}-\d{2}/.test(v) ? fmtD(v) : /^-?[1-9]\d*(\.\d+)?$/.test(v) && Math.abs(+v) >= 1000 ? fmtN(+v) : v;
+  return `<ul class="fx" style="margin-top:4px">${String(text).split('\n').map(line => {
+    const m = line.match(/^(.*?)([A-Za-z_][A-Za-z0-9_]*): (.*) → (.*)$/);
+    if (!m) return `<li>${esc(line)}</li>`;
+    return `<li>${esc(m[1])}${esc(LABEL[m[2]] || SUB_LABEL[m[2]] || m[2])}: <span class="muted">${esc(val(m[3]))}</span> → <b>${esc(val(m[4]))}</b></li>`;
+  }).join('')}</ul>`;
+}
 function vDetail(cid) {
   const p = S.ix.p[cid];
   if (!p) { shell('list', `<div class="panel empty">ไม่พบบริษัท ${esc(cid)} <a href="#/list">กลับไปหน้าค้นหา</a></div>`); return; }
@@ -826,15 +994,15 @@ function vDetail(cid) {
   <div class="dlay">
     <div class="grid">
       <section class="panel"><h2>สัญญาปัจจุบัน</h2>${kv([['อาคาร', p.Existing_Building], ['โซน', p.Current_Zone], ['พื้นที่ปัจจุบัน', p.Current_Area_sqm != null ? fmtN(p.Current_Area_sqm) + ' sqm' : ''], ['เช่าตั้งแต่', fmtD(p.Occupied_Since)], ['หมดสัญญา', fmtExpiry(p)], ['ที่อยู่', p.Address]])}</section>
-      <section class="panel"><h2>ความต้องการ</h2>${kv([['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+ sqm' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) + ' sqm' : ' sqm') : ''], ['อาคารเป้าหมาย', [p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', ')], ['Unit/Floor', p.Unit_Floor_Interested], ['ราคาเสนอ', p.Est_Rental_Rate != null ? fmtN(p.Est_Rental_Rate) + ' THB/sqm' : ''], ['หมายเหตุราคา', p.Rental_Rate_Note], ['Business Growth', p.Business_Growth], ['ขยายพื้นที่', p.Expansion === 'Yes' ? (p.Expansion_sqm ? fmtN(p.Expansion_sqm) + ' sqm' : 'Yes') : p.Expansion], ['Source', [p.Source, p.Agent].filter(Boolean).join(' · ')]])}</section>
-      <section class="panel"><h2>ข้อมูลบริษัท</h2>${kv([['Business Category', p.Business_Category], ['ประเทศ', p.Country_of_Origin], ['ปีที่ก่อตั้ง', p.Year_Established], ['ทุนจดทะเบียน', p.Registered_Capital != null ? fmtN(p.Registered_Capital) + ' THB' : ''], ['พนักงาน (ไทย)', fmtN(p.Employees_TH)], ['มีบริษัทแม่', p.Has_Parent_Company], ['BOI / Listed / ESG', [p.BOI, p.Listed, p.ESG].map(v => v || '-').join(' / ')], ['Website', link(p.Website), 1], ['LinkedIn', link(p.LinkedIn), 1], ['ติดต่อครั้งแรก', fmtD(p.First_Contact_Date)]])}${p.Remark ? `<p style="margin:14px 0 0;white-space:pre-line"><span class="hint">Remark</span><br>${esc(p.Remark)}</p>` : ''}</section>
+      <section class="panel"><h2>ความต้องการ</h2>${kv([['Size', p.Office_Size], ['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+ sqm' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) + ' sqm' : ' sqm') : ''], ['อาคารเป้าหมาย', [p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', ')], ['Unit/Floor', p.Unit_Floor_Interested], ['ราคาเสนอ', p.Est_Rental_Rate != null ? fmtN(p.Est_Rental_Rate) + ' THB/sqm' : ''], ['หมายเหตุราคา', p.Rental_Rate_Note], ['Business Growth', p.Business_Growth], ['ขยายพื้นที่', p.Expansion === 'Yes' ? (p.Expansion_sqm ? fmtN(p.Expansion_sqm) + ' sqm' : 'Yes') : p.Expansion], ['Source', [p.Source, p.Agent].filter(Boolean).join(' · ')]])}</section>
+      <section class="panel"><h2>ข้อมูลบริษัท</h2>${kv([['Business Type', p.Business_Type], ['Working Mode', p.Working_Mode], ['Business Category', p.Business_Category], ['ประเทศ', p.Country_of_Origin], ['ปีที่ก่อตั้ง', p.Year_Established], ['ทุนจดทะเบียน', p.Registered_Capital != null ? fmtN(p.Registered_Capital) + ' THB' : ''], ['พนักงาน (ไทย)', fmtN(p.Employees_TH)], ['มีบริษัทแม่', p.Has_Parent_Company], ['BOI / Listed / ESG', [p.BOI, p.Listed, p.ESG].map(v => v || '-').join(' / ')], ['Website', link(p.Website), 1], ['LinkedIn', link(p.LinkedIn), 1], ['ติดต่อครั้งแรก', fmtD(p.First_Contact_Date)]])}${p.Remark ? `<p style="margin:14px 0 0;white-space:pre-line"><span class="hint">Remark</span><br>${esc(p.Remark)}</p>` : ''}</section>
       <section class="panel"><h2>WP Fit Score</h2>${fitPanel(p, 'detail')}</section>
       <section class="panel"><h2>งบการเงิน (DBD)</h2>${fins.length ? `<div class="tblwrap"><table><thead><tr><th>ปีงบ</th><th class="num">รายได้</th><th class="num">กำไรสุทธิ</th><th class="num">Net Margin</th><th class="num">D/A</th><th class="num">Liquidity</th></tr></thead><tbody>${fins.map(r => `<tr><td>${esc(r.FS_Year || ('บันทึก ' + (r.Record_Year || '')))}</td><td class="num">${fmtN(r.Revenue)}</td><td class="num">${fmtN(r.Net_Profit)}</td><td class="num">${ratio(r.Net_Profit, r.Revenue)}</td><td class="num">${ratio(r.Total_Liabilities, r.Total_Assets)}</td><td class="num">${ratio(r.Current_Assets, r.Current_Liabilities)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="muted">ยังไม่มีข้อมูล</div>'}</section>
     </div>
     <div class="grid">
       <section class="panel"><h2>Follow-up ที่ค้างอยู่</h2>${pend.length ? pend.map(a => `<div class="fu" style="grid-template-columns:92px minmax(0,1fr)"><div class="d ${a.Due_Date < todayISO() ? 'late' : ''}">${fmtD(a.Due_Date)}</div><div>${esc(a.Message)}<div class="m"><span class="type ${a.Action_Type}">${a.Action_Type}</span> ${esc(a.Assigned_To || '')}</div><div style="display:${canEdit(p) ? 'flex' : 'none'};gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" data-act="aDone" data-id="${a.Action_ID}">เสร็จแล้ว</button><button class="btn sm" data-act="aSnooze" data-id="${a.Action_ID}" data-days="7">เลื่อน 7 วัน</button><button class="btn sm ghost" data-act="aCancel" data-id="${a.Action_ID}">ยกเลิก</button></div></div></div>`).join('') : '<div class="muted">ไม่มีรายการค้าง</div>'}</section>
       <section class="panel"><h2>ผู้ติดต่อ</h2>${contacts.length ? contacts.map(c => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(c.Name || '-')}</b>${c.Is_Primary === 'Yes' ? ' <span class="type Auto">หลัก</span>' : ''}<div class="hint">${esc([c.Position, c.Role_in_Deal].filter(Boolean).join(' · '))}</div>${c.Email ? `<div><a href="mailto:${esc(c.Email.split(',')[0].trim())}">${esc(c.Email)}</a></div>` : ''}${c.Phone ? `<div>${esc(c.Phone)}</div>` : ''}</div>`).join('') : '<div class="muted">ยังไม่มีผู้ติดต่อ</div>'}</section>
-      <section class="panel"><h2>ประวัติ</h2><ul class="tl">${[...logs.map(l => [l.Logged_At || '', `<li><div class="when">${fmtD(l.Logged_At)} · ${esc(l.Logged_By || '')}</div><b>${esc(l.Log_Type)}</b>${l.Log_Type === 'Status Change' || l.Log_Type === 'Created' ? ` ${l.From_Status ? stTag(l.From_Status) + ' → ' : ''}${stTag(l.To_Status)}` : ''}${l.Detail ? `<div>${esc(l.Detail)}</div>` : ''}</li>`]), ...done.filter(a => a.Status === 'Cancelled').map(a => [a.Completed_At || a.Due_Date || '', `<li><div class="when">${fmtD(a.Completed_At || a.Due_Date)}</div><b>Follow-up ยกเลิก</b><div class="muted">${esc(a.Message)}${a.Note ? ' · ' + esc(a.Note) : ''}</div></li>`])].sort((a, b) => a[0] < b[0] ? 1 : -1).map(x => x[1]).join('') || '<li>ยังไม่มีประวัติ</li>'}</ul></section>
+      <section class="panel"><h2>ประวัติ</h2><ul class="tl">${[...logs.map(l => [l.Logged_At || '', `<li><div class="when">${fmtD(l.Logged_At)}${l.Logged_At && l.Logged_At.length > 10 ? ' ' + l.Logged_At.slice(11, 16) : ''} · ${esc(l.Logged_By || '')}</div><b>${esc(LOG_T[l.Log_Type] || l.Log_Type)}</b>${l.Log_Type === 'Status Change' || l.Log_Type === 'Created' ? ` ${l.From_Status ? stTag(l.From_Status) + ' → ' : ''}${stTag(l.To_Status)}` : ''}${l.Detail ? (l.Log_Type === 'Edited' ? editDetail(l.Detail) : `<div>${esc(l.Detail)}</div>`) : ''}</li>`]), ...done.filter(a => a.Status === 'Cancelled').map(a => [a.Completed_At || a.Due_Date || '', `<li><div class="when">${fmtD(a.Completed_At || a.Due_Date)}</div><b>Follow-up ยกเลิก</b><div class="muted">${esc(a.Message)}${a.Note ? ' · ' + esc(a.Note) : ''}</div></li>`])].sort((a, b) => a[0] < b[0] ? 1 : -1).map(x => x[1]).join('') || '<li>ยังไม่มีประวัติ</li>'}</ul></section>
     </div>
   </div>`);
 }
@@ -911,7 +1079,7 @@ function vForm(cid) {
   const inp = (k, l, o = {}) => `<label class="f">${l}${o.req ? ' <span class="req">*</span>' : ''}<input class="in" name="${k}" value="${v(k)}" ${o.type ? `type="${o.type}"` : ''} ${o.num ? 'inputmode="decimal"' : ''} ${o.ph ? `placeholder="${esc(o.ph)}"` : ''}>${o.hint ? `<span class="hint">${o.hint}</span>` : ''}</label>`;
   const sel = (k, l, opts, o = {}) => `<label class="f ${o.cls || ''}" ${o.id ? `id="${o.id}"` : ''}>${l}${o.req ? ' <span class="req">*</span>' : ''}<select class="in" name="${k}"><option value="">—</option>${opts.map(x => `<option ${x === p[k] ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>`;
   const yn = (k, l) => `<label class="chk"><input type="checkbox" name="${k}" ${p[k] === 'Yes' ? 'checked' : ''}> ${l}</label>`;
-  const seg = (k, opts, multi) => `<div class="seg" role="group" data-seg="${k}" ${multi ? `data-multi="${multi}"` : ''}>${opts.map(([val, lab]) => `<button type="button" data-act="seg" data-v="${esc(val)}" aria-pressed="${multi ? [p.Target_Building_1, p.Target_Building_2].includes(val) : p[k] === val}">${esc(lab)}</button>`).join('')}</div>`;
+  const seg = (k, opts, multi, clear) => `<div class="seg" role="group" data-seg="${k}" ${multi ? `data-multi="${multi}"` : ''} ${clear ? 'data-clear="1"' : ''}>${opts.map(([val, lab]) => `<button type="button" data-act="seg" data-v="${esc(val)}" aria-pressed="${multi ? [p.Target_Building_1, p.Target_Building_2].includes(val) : p[k] === val}">${esc(lab)}</button>`).join('')}</div>`;
   const prec = p.Lease_Expiry ? p.Expiry_Precision || 'Exact' : (cid ? 'None' : 'None');
   const ey = p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : '', em = p.Lease_Expiry ? p.Lease_Expiry.slice(0, 7) : '', ed = p.Lease_Expiry || '';
   const y0 = new Date().getFullYear();
@@ -929,6 +1097,7 @@ function vForm(cid) {
       <label class="f ${p.Pipeline_Status === 'Lost' ? '' : 'hidden'}" id="lostF">เหตุผลที่ Lost <span class="req">*</span><input class="in" name="Lost_Reason" value="${v('Lost_Reason')}"></label>
       <div class="fg">${inp('First_Contact_Date', 'วันที่ติดต่อครั้งแรก', { req: 1, type: 'date' })}${sel('Source', 'Source', lists('Source'), { req: 1 })}${sel('Agent', 'Agent', lists('Agent'), { cls: p.Source === 'Agent' ? '' : 'hidden', id: 'agentF' })}${can('change_owner') ? sel('Sales_Owner', 'Sales Owner', lists('Sales_Owner'), { req: 1 }) : ''}</div>
       <div class="fg">${sel('Business_Category', 'Business Category', lists('Business_Category'))}<div class="f">Industry Category<div class="auto" id="indAuto">${esc(p.Industry_Category || '—')}</div></div>${sel('Country_of_Origin', 'ประเทศต้นทาง', lists('Country'))}</div>
+      <div class="fg"><div class="f">Business Type${seg('Business_Type', lists('Business_Type').map(x => [x, x]), 0, 1)}</div><div class="f">Working Mode${seg('Working_Mode', lists('Working_Mode').map(x => [x, x]), 0, 1)}</div></div>
       <div class="fg">${inp('Year_Established', 'ปีที่ก่อตั้ง', { num: 1 })}${inp('Registered_Capital', 'ทุนจดทะเบียน (THB)', { num: 1 })}${inp('Employees_TH', 'พนักงาน (ไทย)', { num: 1 })}</div>
       <div style="display:flex;flex-wrap:wrap;gap:0 26px">${yn('Has_Parent_Company', 'มีบริษัทแม่')}${yn('BOI', 'BOI')}${yn('Listed', 'Listed')}${yn('ESG', 'ESG')}</div>
       <div class="fg">${inp('Website', 'Website', { ph: 'https://' })}${inp('LinkedIn', 'LinkedIn', { ph: 'https://linkedin.com/company/…' })}</div>
@@ -950,6 +1119,7 @@ function vForm(cid) {
     </section>
     <section class="fsec" id="s4"><h2>ความต้องการ</h2>
       <div class="fg">${inp('Required_Area_Min', 'พื้นที่ต้องการ ตั้งแต่ (sqm)', { num: 1 })}${inp('Required_Area_Max', 'ถึง (sqm)', { num: 1, hint: 'เว้นว่าง = ไม่จำกัด' })}${sel('Business_Growth', 'Business Growth', lists('Business_Growth'))}</div>
+      <div class="f">Size (ขนาด office)${seg('Office_Size', lists('Office_Size').map(x => [x, x]), 0, 1)}<span class="hint">กดซ้ำเพื่อยกเลิกการเลือก</span></div>
       <div class="f">อาคารเป้าหมาย (เลือกได้ 2)${seg('target', lists('Building').map(b => [b, b]), 2)}</div>
       <div class="fg">${inp('Unit_Floor_Interested', 'Unit / Floor ที่สนใจ')}${inp('Est_Rental_Rate', 'ราคาเสนอ (THB/sqm/เดือน)', { num: 1 })}${inp('Expansion_sqm', 'ขยายพื้นที่ (sqm)', { num: 1, hint: 'ถ้ามีแผนขยาย' })}</div>
       ${inp('Rental_Rate_Note', 'หมายเหตุราคา', { ph: 'เช่น BTB 750 / BTE 1,000, turn-key 15,000' })}
@@ -992,6 +1162,7 @@ function collect(form) {
   ['Year_Established', 'Registered_Capital', 'Employees_TH', 'Current_Area_sqm', 'Required_Area_Min', 'Required_Area_Max', 'Est_Rental_Rate', 'Expansion_sqm'].forEach(k => p[k] = num(String(el[k].value).replace(/,/g, '')));
   ['Has_Parent_Company', 'BOI', 'Listed', 'ESG', 'Bonus_Ecosystem', 'Bonus_Referral'].forEach(k => p[k] = el[k].checked ? 'Yes' : (form._ex && form._ex[k] == null && !el[k].checked ? null : 'No'));
   p.Pipeline_Status = ($('[data-seg="Pipeline_Status"] [aria-pressed="true"]', form) || {}).dataset?.v || null;
+  ['Business_Type', 'Working_Mode', 'Office_Size'].forEach(k => p[k] = ($(`[data-seg="${k}"] [aria-pressed="true"]`, form) || {}).dataset?.v || null);
   const tb = $$('[data-seg="target"] [aria-pressed="true"]', form).map(b => b.dataset.v); p.Target_Building_1 = tb[0] || null; p.Target_Building_2 = tb[1] || null;
   p.Expansion = p.Expansion_sqm ? 'Yes' : (form._ex ? form._ex.Expansion : null);
   if (p.Expansion_sqm == null && p.Expansion === 'Yes' && form._ex && form._ex.Expansion_sqm != null) p.Expansion = null;
@@ -1063,7 +1234,7 @@ function confirmSave(form, { cid, ex, p, row, contacts, fins, ops }) {
   openDlg(`<h2>${cid ? 'ยืนยันการแก้ไข ' + esc(ex.Company_Name) : 'ยืนยันเพิ่ม Prospect ใหม่'}</h2>${body}${fx.length ? `<div><div class="f" style="margin-bottom:4px">ระบบจะทำให้อัตโนมัติ</div><ul class="fx">${fx.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}`,
     async () => {
       const sb = $('#dlg button[value="ok"]');
-      const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว', () => { sb.textContent = 'กำลังโหลดข้อมูลล่าสุด…'; });
+      const map = await commit(ops, cid ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่ม ' + p.Company_Name + ' แล้ว', () => { sb.textContent = 'บันทึกแล้ว'; });
       location.hash = '#/p/' + (cid || map['$C']);
     }, { ok: 'ยืนยันบันทึก', cancel: 'กลับไปแก้ไข', wide: true });
 }
@@ -1139,10 +1310,18 @@ const ACT = {
   goExpLater: el => goList({ owner: S.dashOwner ? [S.dashOwner] : [], conds: [{ field: 'Lease_Expiry', op: 'after', value: el.dataset.v.slice(1) + '-12-31' }] }),
   goStatus: el => goList({ status: [el.dataset.v], owner: S.dashOwner ? [S.dashOwner] : [] }), goOwner: el => goList({ owner: [el.dataset.v], status: STATUSES.filter(s => !CLOSED.includes(s)) }),
   goBuilding: el => goList({ building: [el.dataset.v] }), goZone: el => goList({ zone: [el.dataset.v] }),
+  fopen: el => { const k = el.dataset.k; S.fopen = S.fopen === k ? null : k; renderFilterBar(); renderPop(); },
+  fpick: el => { const k = el.dataset.k; if (!S.filters.extra.includes(k)) S.filters.extra.push(k); S.fopen = k; renderFilterBar(); renderPop(); },
+  frm: el => { const k = el.dataset.k, F = S.filters; F.extra = F.extra.filter(x => x !== k); if (FDEF[k].custom) F.conds = []; else F[k] = FDEF[k].one ? '' : []; if (S.fopen === k) S.fopen = null; renderFilterBar(); renderPop(); renderResults(); },
+  frmLegacy: el => { const F = S.filters, k = el.dataset.k; if (k === 'cur') F.curMin = F.curMax = ''; else if (k === 'req') F.reqMin = F.reqMax = ''; else F[k] = ''; renderFilterBar(); renderResults(); },
+  fclr: el => { const k = el.dataset.k; S.filters[k] = FDEF[k].one ? '' : []; renderFilterBar(); renderPop(); renderResults(); },
+  fdone: () => { S.fopen = null; renderFilterBar(); renderPop(); },
+  colAll: () => { $$('#dlg input[name="col"]').forEach(c => c.checked = true); colCount(); },
+  colNone: () => { $$('#dlg input[name="col"]').forEach(c => c.checked = false); colCount(); },
   fchip: el => { const k = el.dataset.k, v = el.dataset.v, a = S.filters[k]; const i = a.indexOf(v); i >= 0 ? a.splice(i, 1) : a.push(v); el.setAttribute('aria-pressed', i < 0); renderResults(); },
-  clearF: () => { S.filters = blankFilters(); vList(); },
-  saveF: () => openDlg(`<h2>บันทึกชุดตัวกรอง</h2><label class="f">ชื่อ<input class="in" name="n" placeholder="เช่น หมด 2028 บางนา 1,000+ sqm"></label>`, async fd => { const name = (fd.get('n') || '').trim(); if (!name) throw new Error('กรุณาตั้งชื่อ'); const s = store.get('savedFilters') || []; s.push({ name, f: clone(S.filters) }); store.set('savedFilters', s); vList(); toast('บันทึกชุดตัวกรองแล้ว'); }),
-  loadSaved: el => { S.filters = Object.assign(blankFilters(), clone((store.get('savedFilters') || [])[+el.dataset.i].f)); vList(); },
+  clearF: () => { S.filters = blankFilters(); S.fopen = null; vList(); },
+  saveF: () => openDlg(`<h2>บันทึกมุมมอง</h2><label class="f">ชื่อ<input class="in" name="n" placeholder="เช่น SME สัญญาหมดใน 12 เดือน"></label><label class="chk"><input type="checkbox" name="wc" checked> รวมชุดคอลัมน์ report ปัจจุบันด้วย (${getCols().length} คอลัมน์)</label>`, async fd => { const name = (fd.get('n') || '').trim(); if (!name) throw new Error('กรุณาตั้งชื่อ'); const s = (store.get('savedFilters') || []).filter(x => x.name !== name); s.push({ name, f: clone(S.filters), cols: fd.get('wc') ? getCols() : null }); store.set('savedFilters', s); vList(); toast('บันทึกมุมมองแล้ว'); }),
+  loadSaved: el => { const v = (store.get('savedFilters') || [])[+el.dataset.i]; S.filters = Object.assign(blankFilters(), clone(v.f)); if (v.cols) store.set('reportCols', v.cols); S.fopen = null; vList(); toast('ใช้มุมมอง ' + v.name + (v.cols ? ' (รวมคอลัมน์ report)' : '')); },
   delSaved: el => { const s = store.get('savedFilters') || []; s.splice(+el.dataset.i, 1); store.set('savedFilters', s); vList(); },
   addCond: () => { S.filters.conds.push({ field: 'Current_Area_sqm', op: 'gte', value: '' }); vList(); },
   delCond: el => { S.filters.conds.splice(+el.dataset.i, 1); vList(); },
@@ -1157,6 +1336,7 @@ const ACT = {
   seg: el => {
     const g = el.closest('[data-seg]'), multi = +g.dataset.multi || 0, on = el.getAttribute('aria-pressed') === 'true';
     if (multi) { if (!on && $$('[aria-pressed="true"]', g).length >= multi) { toast('เลือกได้สูงสุด ' + multi + ' อาคาร'); return; } el.setAttribute('aria-pressed', !on); }
+    else if (g.dataset.clear && on) el.setAttribute('aria-pressed', 'false');
     else { $$('button', g).forEach(b => b.setAttribute('aria-pressed', b === el)); }
     if (g.dataset.seg === 'prec') { const f = $('#pform').elements; f.exp_y.classList.toggle('hidden', el.dataset.v !== 'Year'); f.exp_m.classList.toggle('hidden', el.dataset.v !== 'Month'); f.exp_d.classList.toggle('hidden', el.dataset.v !== 'Exact'); }
     formLive();
@@ -1178,6 +1358,10 @@ document.addEventListener('input', e => {
   const c = e.target.dataset.cond; if (c && c === 'value') { S.filters.conds[+e.target.closest('.cond').dataset.i].value = e.target.value; renderResults(); }
 });
 document.addEventListener('change', e => {
+  const fo = e.target.dataset.fopt;
+  if (fo) { S.filters[fo] = FDEF[fo].one ? e.target.value : $$(`[data-fopt="${fo}"]:checked`).map(x => x.value); renderFilterBar(); renderResults(); return; }
+  if (e.target.name === 'col' && e.target.closest('#dlg')) { colCount(); return; }
+  if (e.target.dataset.change === 'colSet') { const st = (store.get('colSets') || [])[+e.target.value]; if (st) { $$('#dlg input[name="col"]').forEach(c => c.checked = st.cols.includes(c.value)); colCount(); } return; }
   const c = e.target.dataset.cond;
   if (c === 'field' || c === 'op') { const cd = S.filters.conds[+e.target.closest('.cond').dataset.i]; cd[c] = e.target.value; if (c === 'field') { cd.op = OPS[fieldType(cd.field)][0][0]; cd.value = ''; } vList(); return; }
   if (e.target.dataset.f === 'expWithin') return;
@@ -1188,8 +1372,8 @@ document.addEventListener('change', e => {
 window.addEventListener('hashchange', route);
 
 /* ---------------- settings (แก้ไขได้) ---------------- */
-const EDIT_LISTS = [['Zone', 'โซน', 'ช่อง "โซนปัจจุบัน" · คะแนนตั้งในแท็บ WP Fit Score'], ['Building', 'อาคารเป้าหมาย', 'ช่อง "อาคารเป้าหมาย"'], ['Sales_Owner', 'Sales Owner', 'ผู้ดูแลบริษัท · ผูกกับผู้ใช้ในแท็บผู้ใช้งาน'], ['Source', 'Source', 'ที่มาของลูกค้า'], ['Agent', 'Agent', 'แสดงเมื่อ Source = Agent'], ['Business_Category', 'Business Category', 'ระบบแปลงเป็น Industry ตามคอลัมน์หมวดใหญ่'], ['Country', 'ประเทศต้นทาง', ''], ['Business_Growth', 'Business Growth', 'ใช้คำนวณ Growth Fit (Unknown = ไม่มีแผน)'], ['Role_in_Deal', 'บทบาทในดีล', 'ใช้ในส่วนผู้ติดต่อ']];
-const USAGE_MAP = { Zone: [['prospects', 'Current_Zone']], Building: [['prospects', 'Target_Building_1'], ['prospects', 'Target_Building_2']], Sales_Owner: [['prospects', 'Sales_Owner']], Source: [['prospects', 'Source']], Agent: [['prospects', 'Agent']], Business_Category: [['prospects', 'Business_Category']], Country: [['prospects', 'Country_of_Origin']], Business_Growth: [['prospects', 'Business_Growth']], Role_in_Deal: [['contacts', 'Role_in_Deal']], Talent_Type: [['prospects', 'Talent_Type']], Brand_Type: [['prospects', 'Brand_Type']] };
+const EDIT_LISTS = [['Zone', 'โซน', 'ช่อง "โซนปัจจุบัน" · คะแนนตั้งในแท็บ WP Fit Score'], ['Building', 'อาคารเป้าหมาย', 'ช่อง "อาคารเป้าหมาย"'], ['Sales_Owner', 'Sales Owner', 'ผู้ดูแลบริษัท · ผูกกับผู้ใช้ในแท็บผู้ใช้งาน'], ['Source', 'Source', 'ที่มาของลูกค้า'], ['Agent', 'Agent', 'แสดงเมื่อ Source = Agent'], ['Business_Category', 'Business Category', 'ระบบแปลงเป็น Industry ตามคอลัมน์หมวดใหญ่'], ['Country', 'ประเทศต้นทาง', ''], ['Business_Growth', 'Business Growth', 'ใช้คำนวณ Growth Fit (Unknown = ไม่มีแผน)'], ['Role_in_Deal', 'บทบาทในดีล', 'ใช้ในส่วนผู้ติดต่อ'], ['Business_Type', 'Business Type', 'SME / Thai Corporation / MNCs'], ['Working_Mode', 'Working Mode', 'รูปแบบการเข้า office'], ['Office_Size', 'Size (ขนาด office)', 'S / M / L']];
+const USAGE_MAP = { Zone: [['prospects', 'Current_Zone']], Building: [['prospects', 'Target_Building_1'], ['prospects', 'Target_Building_2']], Sales_Owner: [['prospects', 'Sales_Owner']], Source: [['prospects', 'Source']], Agent: [['prospects', 'Agent']], Business_Category: [['prospects', 'Business_Category']], Country: [['prospects', 'Country_of_Origin']], Business_Growth: [['prospects', 'Business_Growth']], Role_in_Deal: [['contacts', 'Role_in_Deal']], Talent_Type: [['prospects', 'Talent_Type']], Brand_Type: [['prospects', 'Brand_Type']], Business_Type: [['prospects', 'Business_Type']], Working_Mode: [['prospects', 'Working_Mode']], Office_Size: [['prospects', 'Office_Size']] };
 const RULE_BASES = [['Lease_Expiry', 'วันหมดสัญญา'], ['First_Contact_Date', 'วันที่ติดต่อครั้งแรก'], ['Occupied_Since', 'วันที่เริ่มเช่า']];
 let _k = 0; const nk = () => 'k' + (++_k);
 function usageOf(list, value) {
