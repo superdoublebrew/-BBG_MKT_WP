@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ทดสอบความเร็ว Prospect</title>
+<style>
+body{font-family:system-ui,'Noto Sans Thai',sans-serif;max-width:860px;margin:24px auto;padding:0 16px;color:#1c2733;background:#f5f7f9}
+h1{font-size:22px;margin:0 0 4px} p{color:#5a6773;margin:0 0 16px}
+.box{background:#fff;border:1px solid #dde3e8;border-radius:10px;padding:16px;margin-bottom:14px}
+input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #c9d2da;border-radius:6px;font:inherit}
+button{padding:10px 18px;border:0;border-radius:8px;background:#1f4e78;color:#fff;font:inherit;cursor:pointer;margin-top:10px}
+button:disabled{opacity:.5}
+table{width:100%;border-collapse:collapse;font-size:14px} td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #eef1f4} td.n{text-align:right;font-variant-numeric:tabular-nums}
+.bad{color:#b42318;font-weight:600}.ok{color:#067647}.warn{color:#b54708}
+#verdict li{margin:6px 0}
+</style></head><body>
+<h1>ทดสอบความเร็วการโหลด</h1>
+<p>วัดแยกทีละขั้น: GitHub · Google Apps Script · ข้อมูลจาก Sheet · การรอผลบันทึก</p>
+<div class="box">
+  <label>API URL<input id="url" value="https://script.google.com/macros/s/AKfycbzL99K_ncSYwaKBj-oRsJTu9ovsgLtqTsO_7dW38n1kNYkR51nH1tmVUDCmXMnvys6kvQ/exec"></label>
+  <div id="tok" style="font-size:13px;margin-top:8px"></div>
+  <button id="go">เริ่มทดสอบ (ประมาณ 1 นาที)</button>
+</div>
+<div class="box"><table><thead><tr><th>ขั้นตอน</th><th>ครั้ง</th><th class="n">เวลา</th><th>ผล</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="box"><b>สรุป</b><ul id="verdict"><li>กดเริ่มทดสอบ</li></ul></div>
+<script>
+const $ = s => document.querySelector(s);
+let token = null; try { token = JSON.parse(localStorage.getItem('pt_token')); } catch (e) { }
+$('#tok').innerHTML = token ? '<span class="ok">พบการ login ในเครื่องนี้ จะทดสอบการโหลดข้อมูลจริงด้วย</span>' : '<span class="warn">ไม่พบการ login (ต้องวางไฟล์นี้ใน GitHub repo เดียวกับหน้าเว็บ และเคย login แล้ว) จะทดสอบได้แค่บางส่วน</span>';
+const R = [];
+function add(step, i, ms, res, cls) { R.push({ step, ms, ok: cls !== 'bad' }); $('#rows').insertAdjacentHTML('beforeend', `<tr><td>${step}</td><td>${i}</td><td class="n">${ms == null ? '-' : (ms / 1000).toFixed(2) + ' s'}</td><td class="${cls}">${res}</td></tr>`); }
+async function timed(url) {
+  const a = performance.now();
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    const txt = await r.text(); const ms = performance.now() - a;
+    let j = null; try { j = JSON.parse(txt); } catch (e) { }
+    return { ms, status: r.status, j, kb: Math.round(txt.length / 1024) };
+  } catch (e) { return { ms: performance.now() - a, err: 'เชื่อมต่อไม่ได้ (เน็ต หรือ Google ตอบหน้า error)' }; }
+}
+const stats = name => { const x = R.filter(r => r.step === name && r.ok).map(r => r.ms); return x.length ? { avg: x.reduce((a, b) => a + b) / x.length, max: Math.max(...x), n: x.length, fail: R.filter(r => r.step === name && !r.ok).length } : { n: 0, fail: R.filter(r => r.step === name).length }; };
+$('#go').onclick = async () => {
+  $('#go').disabled = true; $('#rows').innerHTML = ''; R.length = 0; $('#verdict').innerHTML = '<li>กำลังทดสอบ…</li>';
+  const API = $('#url').value.trim(), tk = token ? '&token=' + encodeURIComponent(token) : '';
+  // 1) GitHub
+  for (let i = 1; i <= 2; i++) { const r = await timed('./index.html?t=' + Date.now()); add('1. โหลดหน้าเว็บจาก GitHub', i, r.ms, r.err || (r.status === 200 ? r.kb + ' KB' : 'HTTP ' + r.status), r.status === 200 ? 'ok' : 'bad'); }
+  // 2) Apps Script เปล่า
+  for (let i = 1; i <= 5; i++) { const r = await timed(API + '?t=' + Date.now()); add('2. เรียก Apps Script (ไม่แตะข้อมูล)', i, r.ms, r.err || (r.j && r.j.ok ? 'ปกติ' : 'HTTP ' + r.status + ' ตอบผิดรูปแบบ'), r.j && r.j.ok ? 'ok' : 'bad'); }
+  // 3) ตรวจ login (อ่าน Config)
+  for (let i = 1; i <= 3; i++) { const r = await timed(API + '?action=result&id=diag' + Date.now() + tk); const good = r.j && (r.j.ok || /AUTH/.test(r.j.error)); add('3. ตรวจสิทธิ์ + อ่าน Config', i, r.ms, r.err || (good ? (r.j.ok ? 'ปกติ' : 'ปกติ (ยังไม่ login)') : 'HTTP ' + r.status), good ? 'ok' : 'bad'); }
+  // 4) bootstrap
+  if (token) for (let i = 1; i <= 3; i++) { const r = await timed(API + '?action=bootstrap' + tk); const good = r.j && r.j.ok; add('4. โหลดข้อมูลทั้งหมด (bootstrap)', i, r.ms, r.err || (good ? r.kb + ' KB · ' + r.j.data.prospects.length + ' บริษัท' : (r.j ? r.j.error : 'HTTP ' + r.status)), good ? 'ok' : 'bad'); }
+  // สรุป
+  const s1 = stats('1. โหลดหน้าเว็บจาก GitHub'), s2 = stats('2. เรียก Apps Script (ไม่แตะข้อมูล)'), s3 = stats('3. ตรวจสิทธิ์ + อ่าน Config'), s4 = stats('4. โหลดข้อมูลทั้งหมด (bootstrap)');
+  const v = [], f = x => (x / 1000).toFixed(1) + ' วินาที';
+  if (s1.n) v.push(s1.avg > 2000 ? `<span class="bad">GitHub ช้า</span> (${f(s1.avg)}) อาจเป็นเน็ตของเครื่องนี้` : `<span class="ok">GitHub เร็วปกติ</span> (${f(s1.avg)}) ไม่ใช่ต้นเหตุ`);
+  if (s2.fail) v.push(`<span class="bad">Google Apps Script ตอบพลาด ${s2.fail}/5 ครั้ง</span> แม้คำขอที่ไม่แตะข้อมูล → ปัญหาฝั่ง Google หรือเน็ต ไม่ใช่โค้ด`);
+  if (s2.n) v.push(`ค่าพื้นฐานของ Google Apps Script ต่อ 1 คำขอ: <b>${f(s2.avg)}</b> (ปกติ 0.5–2 วินาที${s2.avg > 3000 ? ' · <span class="bad">ช้ากว่าปกติ</span>' : ''})`);
+  if (s3.n && s2.n) v.push(`ตรวจสิทธิ์ + Config ใช้เพิ่ม <b>${f(Math.max(0, s3.avg - s2.avg))}</b>${s3.avg - s2.avg > 1500 ? ' · <span class="warn">ค่อนข้างช้า ตรวจชีต Config ว่ามีแถวว่างเยอะไหม</span>' : ''}`);
+  if (s4.n && s2.n) v.push(`อ่านข้อมูลจาก Sheet ใช้เพิ่ม <b>${f(Math.max(0, s4.avg - s2.avg))}</b>${s4.avg - s2.avg > 4000 ? ' · <span class="bad">ช้า</span> → รัน diagSpeed ใน Apps Script เพื่อดูว่าชีตไหนช้า' : ' · ปกติ'}`);
+  if (s4.fail) v.push(`<span class="bad">โหลดข้อมูลพลาด ${s4.fail}/3 ครั้ง</span>`);
+  if (s2.n) v.push(`ตอนกดบันทึก ต้องใช้อย่างน้อย 2 คำขอ (ส่ง + ถามผล) ≈ <b>${f(s2.avg * 2 + 500)}</b> ขึ้นไป`);
+  $('#verdict').innerHTML = v.map(x => '<li>' + x + '</li>').join('');
+  $('#go').disabled = false;
+};
+</script></body></html>
