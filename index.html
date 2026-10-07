@@ -451,9 +451,16 @@ const isMine = a => !S.user.owner || a === S.user.owner;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function getJSON(url) {
-  let r;
-  try { r = await fetch(url); } catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
-  try { return await r.json(); } catch (e) { throw new Error('เชื่อมต่อ API ไม่ได้ (HTTP ' + r.status + ') ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด'); }
+  // Google ตอบ 404/5xx หรือหน้า error ชั่วคราวได้เป็นครั้งคราว → ลองใหม่อัตโนมัติ 4 ครั้ง (รอ 1, 2, 3, 4 วินาที)
+  let last;
+  for (let i = 0; i < 5; i++) {
+    if (i) await sleep(1000 * i);
+    let r;
+    try { r = await fetch(url, { cache: 'no-store' }); } catch (e) { last = new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); continue; }
+    if (r.ok) { try { return await r.json(); } catch (e) { } }
+    last = new Error('เชื่อมต่อ API ไม่ได้ (HTTP ' + r.status + ') ลองใหม่อีกครั้ง ถ้ายังเป็นอยู่ ตรวจสอบว่า Deploy แบบ Anyone และใช้ URL ล่าสุด');
+  }
+  throw last;
 }
 async function api(action, payload) {
   const tok = S.token ? '&token=' + encodeURIComponent(S.token) : '';
@@ -469,7 +476,7 @@ async function api(action, payload) {
     catch (e) { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ API ไม่ได้'); }
     const t0 = Date.now();
     for (let i = 0; Date.now() - t0 < 60000 && !(j && j.ready); i++) {
-      if (i) await sleep(400);   // ถามผลถี่ๆ แบบคงที่ จนครบ 60 วินาที
+      if (i) await sleep(600);   // ถามผลแบบคงที่ จนครบ 60 วินาที
       j = await getJSON(API_URL + '?action=result&id=' + reqId + tok);
       if (!j.ok) break;
     }
