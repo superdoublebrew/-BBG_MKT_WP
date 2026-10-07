@@ -263,7 +263,7 @@ dialog::backdrop{background:rgba(10,20,30,.45)}
 .active-f{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .af{font-size:12.5px;background:var(--navy-l);color:var(--navy);padding:3px 8px;border-radius:6px}
 .fpanel{display:flex;flex-direction:column;gap:12px;padding:16px;margin-bottom:16px}
-.fbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fltbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .fwrap{display:inline-flex;align-items:center}
 .fbtn.set{background:var(--navy-l);border-color:var(--navy);color:var(--navy)}
 .fbtn.open,.btn.open{box-shadow:0 0 0 2px var(--navy)}
@@ -830,8 +830,8 @@ function vList() {
   <div class="topline"><h1>ค้นหา Prospect</h1>${can('edit') ? '<a class="btn pri" href="#/new">เพิ่ม Prospect</a>' : ''}</div>
   <section class="panel fpanel" aria-label="ตัวกรอง">
     <input class="in" data-f="q" value="${esc(S.filters.q)}" placeholder="ค้นหาชื่อบริษัท อาคาร หรือหมายเหตุ" aria-label="ค้นหา">
-    ${saved.length ? `<div class="fbar"><span class="hint">มุมมองที่บันทึกไว้</span>${saved.map((s, i) => `<span style="display:inline-flex"><button class="chip" data-act="loadSaved" data-i="${i}">${esc(s.name)}${s.cols ? ' ' + ic('columns').replace('<svg', '<svg width="13" height="13"') : ''}</button><button class="btn ghost sm" data-act="delSaved" data-i="${i}" aria-label="ลบ ${esc(s.name)}">${ic('x').replace('<svg', '<svg width="14" height="14"')}</button></span>`).join('')}</div>` : ''}
-    <div class="fbar" id="fbar"></div>
+    ${saved.length ? `<div class="fltbar"><span class="hint">มุมมองที่บันทึกไว้</span>${saved.map((s, i) => `<span style="display:inline-flex"><button class="chip" data-act="loadSaved" data-i="${i}">${esc(s.name)}${s.cols ? ' ' + ic('columns').replace('<svg', '<svg width="13" height="13"') : ''}</button><button class="btn ghost sm" data-act="delSaved" data-i="${i}" aria-label="ลบ ${esc(s.name)}">${ic('x').replace('<svg', '<svg width="14" height="14"')}</button></span>`).join('')}</div>` : ''}
+    <div class="fltbar" id="fbar"></div>
     <div id="fpop"></div>
   </section>
   <section id="results"></section>`);
