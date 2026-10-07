@@ -352,6 +352,12 @@ dl{margin:0}
   .fbar{margin:16px -16px -80px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+#qbar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 32px))}
+#qbar .qi{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+#qbar .qi.ok{border-color:#3d9a5f}#qbar .qi.err{border-color:#c0392b;align-items:flex-start}
+#qbar .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--navy);animation:qs 0.8s linear infinite;flex:none}
+@keyframes qs{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){#qbar .spin{animation:none}}
 </style>
 </head>
 <body>
@@ -373,7 +379,7 @@ function permsOf(role) {
   return out;
 }
 const can = k => !!(S.user && S.user.perms && S.user.perms[k]);
-const canEdit = p => can('edit') && (can('edit_others') || !S.user.owner || (p && p.Sales_Owner === S.user.owner));
+const canEdit = p => !(p && p._tmp) && can('edit') && (can('edit_others') || !S.user.owner || (p && p.Sales_Owner === S.user.owner));
 const DEMO = !API_URL && typeof window.DEMO_DATA !== 'undefined';
 const S = { dashOwner: null, data: null, user: null, token: null, filters: null, sort: { k: 'Company_Name', d: 1 }, alertTab: 'overdue', alertScope: 'mine', ix: {} };
 const STATUSES = ['Sale Blitz', 'Prospected', 'Inspected', 'Follow-Up', 'Negotiation', 'Closed Deal', 'Lost'];
@@ -526,17 +532,112 @@ function applyOpsLocal(ops) {
   return idMap;
 }
 let _gen = 0;
+/* ---------- บันทึกเบื้องหลัง: กดยืนยันแล้วใช้งานต่อได้ทันที ระบบส่งข้อมูลตามลำดับ ---------- */
+const Q = { jobs: [], busy: false, n: 0, errors: [], own: {} };   // own: Updated_At เดิม → ใหม่ จากการบันทึกของเราเอง
+const isTmp = id => typeof id === 'string' && id.charAt(0) === '~';
 async function commit(ops, msg, onSaved) {
-  let idMap;
   _gen++;
-  if (DEMO) { idMap = applyOpsLocal(ops); reindex(); }
-  else {
-    const j = await api('save', { ops }); idMap = j.idMap || {}; if (onSaved) onSaved();
-    if (j.rows) { applyRows(j.rows); reindex(); refreshLater(); }   // อัปเดตหน้าจอทันทีจากแถวที่ server เขียนจริง
-    else await loadData();                                           // Apps Script เวอร์ชันเก่า
-  }
-  if (msg) toast(msg);
+  if (DEMO) { const idMap = applyOpsLocal(ops); reindex(); if (msg) toast(msg); return idMap; }
+  const job = { id: ++Q.n, ops: clone(ops), msg };
+  job.ops.forEach(o => { if (o.expect !== undefined) { let e = o.expect, k; while ((k = o.row.Company_ID + '|' + e) in Q.own) e = Q.own[k]; o.expect = e; } });
+  const idMap = optimistic(job); reindex();
+  Q.jobs.push(job); qRender(); qRun();
+  if (onSaved) onSaved();
   return idMap;
+}
+/** ใส่ข้อมูลลงหน้าจอก่อน (ID ชั่วคราวขึ้นต้นด้วย ~) และเก็บค่าเดิมไว้เผื่อต้องย้อน */
+function optimistic(job) {
+  const idMap = {}, now = nowISO(), who = S.user.name; job.undo = [];
+  job.ops.forEach(o => {
+    const [key, idK, pre] = TABLE[o.sheet], arr = S.data[key];
+    const row = {}; Object.entries(o.row).forEach(([k, v]) => row[k] = (typeof v === 'string' && idMap[v]) ? idMap[v] : v);
+    if (o.op === 'insert') {
+      const tmp = '~' + pre + job.id + '_' + Object.keys(idMap).length; if (row[idK] && String(row[idK])[0] === '$') idMap[row[idK]] = tmp;
+      row[idK] = tmp; row._tmp = job.id;
+      if (o.sheet === 'Prospects') Object.assign(row, { Created_At: now, Created_By: who });
+      if (o.sheet === 'Activity_Log') Object.assign(row, { Logged_At: row.Logged_At || now, Logged_By: row.Logged_By || who });
+      if (o.sheet === 'Actions') Object.assign(row, { Created_At: now, Created_By: row.Created_By || who });
+      arr.push(row);
+    } else if (o.op === 'update') {
+      const i = arr.findIndex(r => r[idK] === row[idK]); if (i < 0) return;
+      job.undo.push([key, idK, clone(arr[i])]);
+      arr[i] = Object.assign({}, arr[i], row, o.sheet === 'Prospects' ? { Updated_By: who } : {});
+    } else if (o.op === 'delete') {
+      const i = arr.findIndex(r => r[idK] === row[idK]); if (i < 0) return;
+      job.undo.push([key, idK, arr[i], 'del']); arr.splice(i, 1);
+    }
+  });
+  job.idMap = idMap;
+  return idMap;
+}
+function dropTmp(jobId) { Object.values(TABLE).forEach(([key]) => { S.data[key] = S.data[key].filter(r => r._tmp !== jobId); }); }
+function rollback(job) {
+  dropTmp(job.id);
+  job.undo.slice().reverse().forEach(([key, idK, old, del]) => {
+    const arr = S.data[key], i = arr.findIndex(r => r[idK] === old[idK]);
+    if (del) { if (i < 0) arr.push(old); } else if (i >= 0) arr[i] = old;
+  });
+}
+async function qRun() {
+  if (Q.busy || !Q.jobs.length) return;
+  Q.busy = true; const job = Q.jobs[0];
+  try {
+    const j = await api('save', { ops: job.ops });
+    dropTmp(job.id);
+    if (j.rows) applyRows(j.rows);
+    // ผูก ID จริงแทน ID ชั่วคราว และค่า Updated_At ล่าสุด ให้รายการที่รอคิวอยู่
+    const real = {}; Object.entries(job.idMap).forEach(([ph, tmp]) => { if (j.idMap && j.idMap[ph]) real[tmp] = j.idMap[ph]; });
+    const upd = {}; (j.rows || []).forEach(w => { if (w.sheet === 'Prospects' && w.row) upd[w.row.Company_ID] = w.row.Updated_At; });
+    job.undo.forEach(([key, , old]) => { if (key === 'prospects' && upd[old.Company_ID] !== undefined) Q.own[old.Company_ID + '|' + old.Updated_At] = upd[old.Company_ID]; });
+    Q.jobs.slice(1).forEach(q => q.ops.forEach(o => {
+      Object.keys(o.row).forEach(k => { if (real[o.row[k]]) o.row[k] = real[o.row[k]]; });
+      if (o.sheet === 'Prospects' && o.op === 'update' && upd[o.row.Company_ID] !== undefined) o.expect = upd[o.row.Company_ID];
+    }));
+    Q.jobs.shift(); reindex();
+    const m = location.hash.match(/^#\/(p|edit)\/(~[^/]+)$/);
+    if (m && real[m[2]]) location.hash = '#/' + m[1] + '/' + real[m[2]];
+    else qRefreshView();
+    qFlash(job.msg || 'บันทึกแล้ว');
+    if (!Q.jobs.length) refreshLater(3000);
+  } catch (e) {
+    Q.jobs.shift(); rollback(job); reindex();
+    if (!String(e.message).startsWith('AUTH')) { Q.errors.push({ job, msg: e.message }); qRefreshView(); }
+  }
+  Q.busy = false; qRender(); qRun();
+}
+/** วาดหน้าปัจจุบันใหม่ ถ้าผู้ใช้ไม่ได้กำลังกรอกฟอร์มหรือเปิดกล่องข้อความอยู่ */
+function qRefreshView() {
+  const h = location.hash;
+  if ($('#dlg').open || h.startsWith('#/edit') || h.startsWith('#/new') || h.startsWith('#/settings')) return;
+  if (h.startsWith('#/list') && typeof renderResults === 'function' && $('#results')) { renderResults(); return; }
+  const y = window.scrollY; route(); window.scrollTo(0, y);
+}
+function qRender() {
+  let el = $('#qbar'); if (!el) { el = document.createElement('div'); el.id = 'qbar'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+  $$('.qi:not(.ok)', el).forEach(x => x.remove());   // เก็บข้อความ "บันทึกแล้ว ✓" ที่กำลังแสดงไว้
+  const n = Q.jobs.length, label = m => String(m || 'การบันทึก').replace(/\s*แล้ว$/, '');
+  el.insertAdjacentHTML('beforeend', (n ? `<div class="qi"><span class="spin" aria-hidden="true"></span>กำลังบันทึก${n > 1 ? ' ' + n + ' รายการ' : ''}… ใช้งานต่อได้เลย</div>` : '')
+    + Q.errors.map((x, i) => `<div class="qi err"><div><b>บันทึกไม่สำเร็จ</b>: ${esc(label(x.job.msg))}<div class="hint" style="color:inherit">${esc(x.msg)}</div></div><span style="display:flex;gap:6px"><button class="btn sm" data-act="qRetry" data-i="${i}">ลองใหม่</button><button class="btn ghost sm" data-act="qDismiss" data-i="${i}">ปิด</button></span></div>`).join(''));
+  el.classList.toggle('hidden', !el.children.length);
+}
+function qFlash(msg) {
+  let el = $('#qbar'); if (!el) return qRender();
+  const d = document.createElement('div'); d.className = 'qi ok'; d.textContent = '✓ ' + msg; el.prepend(d); el.classList.remove('hidden');
+  setTimeout(() => { d.remove(); if (!el.children.length) el.classList.add('hidden'); }, 3500);
+}
+function qRetry(i) {
+  const x = Q.errors.splice(i, 1)[0]; if (!x) return;
+  const job = { id: ++Q.n, ops: x.job.ops, msg: x.job.msg };
+  const p = job.ops.find(o => o.sheet === 'Prospects' && o.op === 'update');
+  if (p && S.ix.p[p.row.Company_ID]) p.expect = S.ix.p[p.row.Company_ID].Updated_At;   // ใช้ค่าล่าสุดของบริษัทนั้น
+  optimistic(job); reindex(); Q.jobs.push(job); qRender(); qRefreshView(); qRun();
+}
+window.addEventListener('beforeunload', e => { if (Q.jobs.length) { e.preventDefault(); e.returnValue = ''; } });
+/** ปลุก Apps Script ล่วงหน้า (Google ตอบช้ามากถ้าสคริปต์ว่างไปสักพัก) */
+let _warm = 0;
+function warmUp() {
+  if (DEMO || !API_URL || Date.now() - _warm < 120000) return;
+  _warm = Date.now(); fetch(API_URL + '?w=' + _warm, { cache: 'no-store' }).catch(() => { });
 }
 function applyRows(rows) {
   rows.forEach(w => {
@@ -549,8 +650,8 @@ function applyRows(rows) {
 function refreshLater(ms = 1500) {
   const g = _gen;
   setTimeout(async () => {
-    if (g !== _gen) return;
-    try { const j = await api('bootstrap'); if (g !== _gen || !S.data) return; Object.assign(S.data, j.data); S.user = j.user; reindex(); } catch (e) { }
+    if (g !== _gen || Q.jobs.length) return;
+    try { const j = await api('bootstrap'); if (g !== _gen || Q.jobs.length || !S.data) return; Object.assign(S.data, j.data); S.user = j.user; reindex(); } catch (e) { }
   }, ms);
 }
 
@@ -1004,7 +1105,7 @@ function vDetail(cid) {
     </div>
     <div class="score ${p.WP_Fit_Score == null ? 'none' : ''}" title="WP Fit Score"><b>${p.WP_Fit_Score ?? '–'}</b><span>${p.Recommended_Building ? esc(p.Recommended_Building) : 'Fit Score'}</span></div>
   </div>
-  ${canEdit(p) ? '' : '<div class="hint" style="margin-bottom:14px">ดูได้อย่างเดียว · บริษัทนี้ดูแลโดย ' + esc(p.Sales_Owner || '-') + '</div>'}
+  ${canEdit(p) ? '' : '<div class="hint" style="margin-bottom:14px">' + (p._tmp ? 'กำลังบันทึกบริษัทใหม่… แก้ไขได้หลังบันทึกเสร็จ' : 'ดูได้อย่างเดียว · บริษัทนี้ดูแลโดย ' + esc(p.Sales_Owner || '-')) + '</div>'}
   <div style="display:${canEdit(p) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap;margin-bottom:18px">
     <button class="btn pri" data-act="dlgStatus" data-id="${cid}">เปลี่ยนสถานะ</button>
     <button class="btn" data-act="dlgActivity" data-id="${cid}">บันทึกกิจกรรม</button>
@@ -1029,9 +1130,10 @@ function vDetail(cid) {
 
 /* ---------------- dialogs ---------------- */
 function openDlg(html, onSubmit, opt = {}) {
+  warmUp();
   const d = $('#dlg'); d.classList.toggle('wide', !!opt.wide); d.innerHTML = `<form class="dlg" method="dialog">${html}<div class="errbox hidden" id="dlgErr"></div><div class="dlg-foot"><button type="button" class="btn" data-act="closeDlg">${opt.cancel || 'ยกเลิก'}</button><button class="btn pri" value="ok">${opt.ok || 'บันทึก'}</button></div></form>`;
   d.oncancel = e => { if (d.dataset.busy) e.preventDefault(); };   // กำลังบันทึก → ปิดกล่องไม่ได้ กันกดซ้ำ
-  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'), cb = e.target.querySelector('[data-act="closeDlg"]'); if (sb.disabled) return; sb.disabled = true; cb.disabled = true; d.dataset.busy = '1'; sb.textContent = 'กำลังบันทึก… กรุณารอ'; try { const r = await onSubmit(new FormData(e.target)); delete d.dataset.busy; if (r !== false) d.close(); } catch (err) { delete d.dataset.busy; const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; cb.disabled = false; sb.textContent = opt.ok || 'บันทึก'; } };
+  d.querySelector('form').onsubmit = async e => { e.preventDefault(); const sb = e.target.querySelector('button[value="ok"]'), cb = e.target.querySelector('[data-act="closeDlg"]'); if (sb.disabled) return; sb.disabled = true; cb.disabled = true; d.dataset.busy = '1'; sb.textContent = 'กำลังบันทึก…'; try { const r = await onSubmit(new FormData(e.target)); delete d.dataset.busy; if (r !== false) d.close(); } catch (err) { delete d.dataset.busy; const b = $('#dlgErr'); b.textContent = err.message; b.classList.remove('hidden'); sb.disabled = false; cb.disabled = false; sb.textContent = opt.ok || 'บันทึก'; } };
   d.showModal(); const first = d.querySelector('input,select,textarea'); if (first) first.focus();
 }
 function dlgStatus(cid) {
@@ -1314,6 +1416,7 @@ function route() {
   S.lastHash = location.hash || '#/dashboard';
   const h = location.hash.replace(/^#\/?/, '') || 'dashboard', [pg, id] = h.split('/');
   if ($('#dlg').open) $('#dlg').close();
+  if (['p', 'new', 'edit'].includes(pg)) warmUp();
   ({ dashboard: vDashboard, list: vList, p: () => vDetail(id), new: () => vForm(null), edit: () => vForm(id), alerts: vAlerts, settings: vSettings }[pg] || vDashboard)();
   if (!['list'].includes(pg)) window.scrollTo(0, 0);
 }
@@ -1350,6 +1453,7 @@ const ACT = {
   csv: exportCSV,
   dlgStatus: el => dlgStatus(el.dataset.id), dlgActivity: el => dlgActivity(el.dataset.id), dlgFU: el => dlgFU(el.dataset.id),
   closeDlg: () => $('#dlg').close(),
+  qRetry: el => qRetry(+el.dataset.i), qDismiss: el => { Q.errors.splice(+el.dataset.i, 1); qRender(); },
   setDate: el => { $('#dlg input[name="d"]').value = addDays(todayISO(), +el.dataset.n); },
   setDateISO: el => { $('#dlg input[name="d"]').value = el.dataset.v; if (!$('#dlg input[name="m"]').value) $('#dlg input[name="m"]').value = 'Follow up as the company contract will expire in 12 months'; },
   aDone: el => actionUpdate(el.dataset.id, 'done'), aSnooze: el => actionUpdate(el.dataset.id, 'snooze', el.dataset.days), aCancel: el => actionUpdate(el.dataset.id, 'cancel'),
