@@ -796,6 +796,30 @@ const NONE = ['__none', 'ไม่ระบุ'];
 const isEmpty = v => v == null || v === '';
 const byField = f => (p, v) => v === '__none' ? isEmpty(p[f]) : p[f] === v;
 const byBand = k => (p, v) => { const x = BAND_VAL[k](p); if (v === '__none') return x == null; const b = BANDS[k].find(b => b[0] === v); return !!b && x != null && x >= b[2] && x < b[3]; };
+/* ---- ความเคลื่อนไหวตามช่วงเวลา: นับจากประวัติ (Activity_Log) + วันที่สร้าง/แก้ไข ---- */
+// รายการที่ย้ายเข้าระบบครั้งแรกถูกบันทึกโดย 'import' (ตัวพิมพ์เล็ก) → ไม่นับเป็นความเคลื่อนไหว
+const isMigrated = by => by === 'import';
+const inRange = (dt, a, b) => { if (!dt) return false; const d = String(dt).slice(0, 10); return (!a || d >= a) && (!b || d <= b); };
+/** สรุปความเคลื่อนไหวของบริษัทในช่วง a–b (null = ไม่มี) */
+function activityOf(p, a, b) {
+  const logs = (S.ix.logs[p.Company_ID] || []).filter(l => inRange(l.Logged_At, a, b) && !(l.Log_Type === 'Created' && isMigrated(l.Logged_By)));
+  const created = (inRange(p.Created_At, a, b) && !isMigrated(p.Created_By)) || logs.some(l => l.Log_Type === 'Created');
+  const st = logs.filter(l => l.Log_Type === 'Status Change').map(l => (l.From_Status || '?') + ' → ' + (l.To_Status || '?'));
+  let ed = logs.filter(l => l.Log_Type === 'Edited').length;
+  if (!ed && !created && !st.length && inRange(p.Updated_At, a, b) && !isMigrated(p.Updated_By)) ed = 1;   // แก้ไขก่อนมีประวัติละเอียด
+  const act = logs.filter(l => !['Created', 'Status Change', 'Edited'].includes(l.Log_Type)).length;
+  if (!created && !st.length && !ed && !act) return null;
+  const last = [p.Created_At, p.Updated_At, ...logs.map(l => l.Logged_At)].filter(d => inRange(d, a, b)).sort().pop() || '';
+  return { created, st, ed, act, last, text: [created ? 'สร้างใหม่' : '', st.length ? 'สถานะ ' + st.join(', ') : '', ed ? 'แก้ไข ' + ed + ' ครั้ง' : '', act ? 'กิจกรรม ' + act + ' ครั้ง' : ''].filter(Boolean).join(' · ') };
+}
+const ACT_PRESETS = [
+  ['7d', '7 วันล่าสุด', () => [addDays(todayISO(), -6), todayISO()]],
+  ['tw', 'สัปดาห์นี้', () => { const t = todayISO(), dow = (parseD(t).getDay() + 6) % 7; return [addDays(t, -dow), t]; }],
+  ['lw', 'สัปดาห์ที่แล้ว', () => { const t = todayISO(), dow = (parseD(t).getDay() + 6) % 7, m = addDays(t, -dow - 7); return [m, addDays(m, 6)]; }],
+  ['tm', 'เดือนนี้', () => { const t = todayISO(); return [t.slice(0, 8) + '01', t]; }]
+];
+const actOn = (F = S.filters) => !!(F.actFrom || F.actTo);
+
 // ตัวกรองทั้งหมด: l = ชื่อ, g = กลุ่ม (ไม่มี = แสดงตลอด), opts = ตัวเลือก [ค่า, ชื่อ], test = เงื่อนไข, one = เลือกได้ค่าเดียว
 const FDEF = {
   status: { l: 'สถานะ', opts: () => STATUSES.map(s => [s, s]), test: byField('Pipeline_Status') },
@@ -822,12 +846,13 @@ const FDEF = {
   daBand: { l: 'D/A (หนี้สิน/สินทรัพย์)', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
   liqBand: { l: 'Liquidity', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', band: 1 },
   hasFin: { l: 'มีข้อมูลงบ', g: 'งบการเงิน (ปีล่าสุดของแต่ละบริษัท)', opts: () => [['yes', 'มี'], ['no', 'ไม่มี']], test: (p, v) => (v === 'yes') === !!finOf(p) },
-  conds: { l: 'เงื่อนไขกำหนดเอง', g: 'อื่นๆ', custom: 1 }
+  conds: { l: 'เงื่อนไขกำหนดเอง', g: 'อื่นๆ', custom: 1 },
+  activity: { l: 'ความเคลื่อนไหว', date: 1 }
 };
 Object.keys(FDEF).forEach(k => { const d = FDEF[k]; if (d.band) { d.opts = () => [...BANDS[k].map(b => [b[0], b[1]]), ['__none', 'ไม่มีข้อมูล']]; d.test = byBand(k); } });
-const PINNED = ['status', 'btype', 'size', 'owner'];
-const SET_KEYS = Object.keys(FDEF).filter(k => !FDEF[k].custom && !FDEF[k].one);
-const blankFilters = () => { const f = { q: '', expWithin: '', curMin: '', curMax: '', reqMin: '', reqMax: '', fitMin: '', hasFU: '', conds: [], extra: [] }; SET_KEYS.forEach(k => f[k] = []); return f; };
+const PINNED = ['activity', 'status', 'btype', 'size', 'owner'];
+const SET_KEYS = Object.keys(FDEF).filter(k => !FDEF[k].custom && !FDEF[k].one && !FDEF[k].date);
+const blankFilters = () => { const f = { q: '', actFrom: '', actTo: '', expWithin: '', curMin: '', curMax: '', reqMin: '', reqMax: '', fitMin: '', hasFU: '', conds: [], extra: [] }; SET_KEYS.forEach(k => f[k] = []); return f; };
 S.filters = Object.assign(blankFilters(), store.get('lastFilters') || {});
 const fieldType = f => NUM_F.includes(f) ? 'num' : DATE_F.includes(f) ? 'date' : 'text';
 const OPS = { text: [['eq', 'เท่ากับ'], ['ne', 'ไม่เท่ากับ'], ['has', 'มีคำว่า'], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']], num: [['gte', '≥'], ['lte', '≤'], ['gt', '>'], ['lt', '<'], ['eq', '='], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']], date: [['year', 'ปี ค.ศ.'], ['after', 'หลังวันที่'], ['before', 'ก่อนวันที่'], ['empty', 'ว่าง'], ['filled', 'ไม่ว่าง']] };
@@ -845,6 +870,7 @@ function match(p, F = S.filters) {
   if (F.q) { const q = F.q.toLowerCase(); if (![p.Company_Name, p.Existing_Building, p.Remark, p.Address, p.Company_ID].some(x => String(x || '').toLowerCase().includes(q))) return false; }
   for (const k of SET_KEYS) { const a = F[k]; if (a && a.length && !a.some(v => FDEF[k].test(p, v))) return false; }   // ในช่องเดียวกัน = "หรือ", ต่างช่อง = "และ"
   if (F.expWithin && !FDEF.expWithin.test(p, F.expWithin)) return false;
+  if (actOn(F) && !activityOf(p, F.actFrom, F.actTo)) return false;
   // ตัวกรองแบบเดิม (มาจากหน้าภาพรวม)
   const ca = num(p.Current_Area_sqm);
   if (F.curMin !== '' && (ca == null || ca < +F.curMin)) return false;
@@ -948,6 +974,8 @@ function fuRow(a) {
 
 /* ---------------- list ---------------- */
 function vList() {
+  const pr = ACT_PRESETS.find(x => x[0] === S.filters.actPreset);   // ช่วงแบบปุ่มลัด → คำนวณใหม่ตามวันนี้
+  if (pr) [S.filters.actFrom, S.filters.actTo] = pr[2]();
   const saved = store.get('savedFilters') || [];
   shell('list', `
   <div class="topline"><h1>ค้นหา Prospect</h1>${can('edit') ? '<a class="btn pri" href="#/new">เพิ่ม Prospect</a>' : ''}</div>
@@ -960,10 +988,11 @@ function vList() {
   <section id="results"></section>`);
   renderFilterBar(); renderPop(); renderResults();
 }
-const fActive = k => FDEF[k].custom ? S.filters.conds.length > 0 : FDEF[k].one ? !!S.filters[k] : S.filters[k].length > 0;
+const fActive = k => FDEF[k].date ? actOn() : FDEF[k].custom ? S.filters.conds.length > 0 : FDEF[k].one ? !!S.filters[k] : S.filters[k].length > 0;
 function fSummary(k) {
   const d = FDEF[k];
   if (d.custom) return d.l + (S.filters.conds.length ? ' (' + S.filters.conds.length + ')' : '');
+  if (d.date) { const F = S.filters; if (!actOn()) return d.l; const pr = ACT_PRESETS.find(x => x[0] === F.actPreset); return d.l + ': ' + (pr ? pr[1] : (F.actFrom ? fmtD(F.actFrom) : '…') + ' – ' + (F.actTo ? fmtD(F.actTo) : '…')); }
   const vals = d.one ? (S.filters[k] ? [S.filters[k]] : []) : S.filters[k];
   if (!vals.length) return d.l;
   const opts = d.opts(), name = v => (opts.find(o => o[0] === v) || [v, v])[1];
@@ -994,6 +1023,13 @@ function renderPop() {
     return;
   }
   const d = FDEF[k];
+  if (d.date) {
+    el.innerHTML = `<div class="fpop"><div class="fgh" style="margin-top:0">${esc(d.l)} · บริษัทที่มีการสร้างใหม่ แก้ไข เปลี่ยนสถานะ หรือบันทึกกิจกรรมในช่วงนี้</div>
+      <div class="chips" style="margin-bottom:10px">${ACT_PRESETS.map(([id, l]) => `<button class="chip" data-act="fpreset" data-p="${id}" aria-pressed="${F.actPreset === id}">${l}</button>`).join('')}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="hint">ตั้งแต่ <input class="in" type="date" data-actd="actFrom" value="${esc(F.actFrom)}" style="width:auto"></label><label class="hint">ถึง <input class="in" type="date" data-actd="actTo" value="${esc(F.actTo)}" style="width:auto"></label></div>
+      <div class="ffoot"><button class="btn ghost sm" data-act="fclr" data-k="activity">ล้างตัวกรองนี้</button><span style="flex:1"></span><button class="btn sm pri" data-act="fdone">เสร็จ</button></div></div>`;
+    return;
+  }
   if (d.custom) {
     const fields = Object.keys(LABEL).filter(f => f !== 'Company_ID');
     el.innerHTML = `<div class="fpop"><div class="fgh" style="margin-top:0">${esc(d.l)} · ใช้กรองค่าเจาะจง เช่น พื้นที่ ≥ 800 (ทุกเงื่อนไขต้องตรง)</div><div id="conds" class="grid" style="gap:8px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${F.conds.map((c, i) => condHTML(c, i, fields)).join('')}</div>
@@ -1017,22 +1053,24 @@ function condHTML(c, i, fields) {
 function renderResults() {
   const rows = S.data.prospects.filter(p => match(p)), { k, d } = S.sort;
   store.set('lastFilters', S.filters);
-  const val = p => k === '_fu' ? (nextFU(p.Company_ID) || {}).Due_Date || '9999' : p[k];
+  const F = S.filters, ao = actOn(F), acts = {};
+  if (ao) rows.forEach(p => acts[p.Company_ID] = activityOf(p, F.actFrom, F.actTo));
+  const val = p => k === '_fu' ? (nextFU(p.Company_ID) || {}).Due_Date || '9999' : k === '_act' ? (acts[p.Company_ID] || {}).last || '' : p[k];
   rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'th')) * d; });
   S.lastRows = rows;
   const th = (key, l, cls = '') => `<th class="${cls}" aria-sort="${k === key ? (d > 0 ? 'ascending' : 'descending') : 'none'}"><button data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
   $('#results').innerHTML = `
   <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span>${can('export') ? '<button class="btn sm" data-act="csv">ส่งออก report</button>' : ''}</div>
-  ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Office_Size', 'Size')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}</tr></thead><tbody>
-  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc([p.Industry_Category, p.Business_Type].filter(Boolean).join(' · '))}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc(p.Office_Size || '')}</td><td>${esc(tbList(p).map(t => t.b).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
+  ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Office_Size', 'Size')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}${ao ? th('_act', 'ความเคลื่อนไหวในช่วง') : ''}</tr></thead><tbody>
+  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc([p.Industry_Category, p.Business_Type].filter(Boolean).join(' · '))}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc(p.Office_Size || '')}</td><td>${esc(tbList(p).map(t => t.b).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td>${ao ? `<td><span class="hint" style="color:inherit">${esc((acts[p.Company_ID] || {}).text || '')}</span><div class="hint">${fmtD((acts[p.Company_ID] || {}).last)}</div></td>` : ''}</tr>`; }).join('')}
   </tbody></table></div>` : `<div class="panel empty">ไม่พบบริษัทที่ตรงเงื่อนไข ลองลดตัวกรอง หรือ <button class="btn sm" data-act="clearF">ล้างตัวกรอง</button></div>`}`;
 }
 
 /* ---------------- report (เลือกคอลัมน์) ---------------- */
-const RLABEL = { _targets: 'อาคารเป้าหมาย + ราคา', _nextFU: 'Follow-up ถัดไป', _finYear: 'ปีงบล่าสุด', _rev: 'Revenue', _np: 'Net Profit', _margin: 'Net Margin (%)', _da: 'D/A', _liq: 'Liquidity' };
+const RLABEL = { _activity: 'ความเคลื่อนไหวในช่วง', _actLast: 'เคลื่อนไหวล่าสุด', _targets: 'อาคารเป้าหมาย + ราคา', _nextFU: 'Follow-up ถัดไป', _finYear: 'ปีงบล่าสุด', _rev: 'Revenue', _np: 'Net Profit', _margin: 'Net Margin (%)', _da: 'D/A', _liq: 'Liquidity' };
 const COL_GROUPS = [
   ['บริษัท', ['Company_ID', 'Company_Name', 'Business_Type', 'Working_Mode', 'Business_Category', 'Industry_Category', 'Country_of_Origin', 'Year_Established', 'Employees_TH', 'Registered_Capital', 'Has_Parent_Company', 'BOI', 'Listed', 'ESG', 'Website', 'LinkedIn']],
-  ['การขาย', ['Pipeline_Status', 'Sales_Owner', 'Source', 'Agent', 'First_Contact_Date', 'Lost_Reason', '_nextFU', 'Remark']],
+  ['การขาย', ['_activity', '_actLast', 'Pipeline_Status', 'Sales_Owner', 'Source', 'Agent', 'First_Contact_Date', 'Lost_Reason', '_nextFU', 'Remark']],
   ['สัญญาปัจจุบัน', ['Existing_Building', 'Address', 'Current_Zone', 'Current_Area_sqm', 'Occupied_Since', 'Lease_Expiry', 'Expiry_Precision']],
   ['ความต้องการ', ['Office_Size', 'Required_Area_Min', 'Required_Area_Max', 'Business_Growth', 'Expansion', 'Expansion_sqm', '_targets', 'Rental_Rate_Note']],
   ['WP Fit Score', ['WP_Fit_Score', 'Recommended_Building', 'Talent_Type', 'Brand_Type', 'Bonus_Ecosystem', 'Bonus_Referral']],
@@ -1047,6 +1085,7 @@ function colVal(p, k) {
   const f = finOf(p) || {}, r2 = x => x == null ? '' : Math.round(x * 100) / 100;
   switch (k) {
     case '_nextFU': { const a = nextFU(p.Company_ID); return a ? a.Due_Date + ' ' + (a.Message || '') : ''; }
+    case '_activity': case '_actLast': { if (!actOn()) return ''; const a = activityOf(p, S.filters.actFrom, S.filters.actTo) || {}; return k === '_activity' ? a.text || '' : (a.last || '').slice(0, 10); }
     case '_targets': return tbList(p).map(tbOne).join(' / ');
     case '_finYear': return f.FS_Year || f.Record_Year || '';
     case '_rev': return f.Revenue ?? ''; case '_np': return f.Net_Profit ?? '';
@@ -1055,8 +1094,9 @@ function colVal(p, k) {
   }
 }
 function exportCSV() {
-  const cur = getCols(), sets = store.get('colSets') || [];
-  openDlg(`<h2>ส่งออก report · ${S.lastRows.length} บริษัท</h2>
+  let cur = getCols(); const sets = store.get('colSets') || [];
+  if (actOn() && !cur.includes('_activity')) cur = ['_activity', ...cur];   // กำลังกรองตามช่วงเวลา → ติ๊กคอลัมน์ความเคลื่อนไหวให้
+  openDlg(`<h2>ส่งออก report · ${S.lastRows.length} บริษัท</h2>${actOn() ? `<p class="hint" style="margin:0">ช่วงความเคลื่อนไหว: ${S.filters.actFrom ? fmtD(S.filters.actFrom) : 'เริ่มต้น'} – ${S.filters.actTo ? fmtD(S.filters.actTo) : 'ปัจจุบัน'}</p>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       ${sets.length ? `<select class="in" data-change="colSet" aria-label="ชุดคอลัมน์" style="max-width:240px"><option value="">ใช้ชุดคอลัมน์ที่บันทึกไว้…</option>${sets.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join('')}</select>` : ''}
       <button type="button" class="btn sm" data-act="colAll">เลือกทั้งหมด</button><button type="button" class="btn sm" data-act="colNone">ล้าง</button><span class="hint" id="colCnt"></span>
@@ -1480,10 +1520,11 @@ const ACT = {
   goBuilding: el => goList({ building: [el.dataset.v] }), goZone: el => goList({ zone: [el.dataset.v] }),
   fopen: el => { const k = el.dataset.k; S.fopen = S.fopen === k ? null : k; renderFilterBar(); renderPop(); },
   fpick: el => { const k = el.dataset.k; if (!S.filters.extra.includes(k)) S.filters.extra.push(k); S.fopen = k; renderFilterBar(); renderPop(); },
-  frm: el => { const k = el.dataset.k, F = S.filters; F.extra = F.extra.filter(x => x !== k); if (FDEF[k].custom) F.conds = []; else F[k] = FDEF[k].one ? '' : []; if (S.fopen === k) S.fopen = null; renderFilterBar(); renderPop(); renderResults(); },
+  frm: el => { const k = el.dataset.k, F = S.filters; F.extra = F.extra.filter(x => x !== k); if (FDEF[k].date) F.actFrom = F.actTo = F.actPreset = ''; else if (FDEF[k].custom) F.conds = []; else F[k] = FDEF[k].one ? '' : []; if (S.fopen === k) S.fopen = null; renderFilterBar(); renderPop(); renderResults(); },
   frmLegacy: el => { const F = S.filters, k = el.dataset.k; if (k === 'cur') F.curMin = F.curMax = ''; else if (k === 'req') F.reqMin = F.reqMax = ''; else F[k] = ''; renderFilterBar(); renderResults(); },
-  fclr: el => { const k = el.dataset.k; S.filters[k] = FDEF[k].one ? '' : []; renderFilterBar(); renderPop(); renderResults(); },
+  fclr: el => { const k = el.dataset.k; if (FDEF[k].date) S.filters.actFrom = S.filters.actTo = S.filters.actPreset = ''; else S.filters[k] = FDEF[k].one ? '' : []; renderFilterBar(); renderPop(); renderResults(); },
   fdone: () => { S.fopen = null; renderFilterBar(); renderPop(); },
+  fpreset: el => { const pr = ACT_PRESETS.find(x => x[0] === el.dataset.p), [a, b] = pr[2](); Object.assign(S.filters, { actFrom: a, actTo: b, actPreset: pr[0] }); renderFilterBar(); renderPop(); renderResults(); },
   colAll: () => { $$('#dlg input[name="col"]').forEach(c => c.checked = true); colCount(); },
   colNone: () => { $$('#dlg input[name="col"]').forEach(c => c.checked = false); colCount(); },
   fchip: el => { const k = el.dataset.k, v = el.dataset.v, a = S.filters[k]; const i = a.indexOf(v); i >= 0 ? a.splice(i, 1) : a.push(v); el.setAttribute('aria-pressed', i < 0); renderResults(); },
@@ -1528,6 +1569,7 @@ document.addEventListener('input', e => {
   const c = e.target.dataset.cond; if (c && c === 'value') { S.filters.conds[+e.target.closest('.cond').dataset.i].value = e.target.value; renderResults(); }
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset.actd) { S.filters[e.target.dataset.actd] = e.target.value; S.filters.actPreset = ''; renderFilterBar(); renderPop(); renderResults(); return; }
   const fo = e.target.dataset.fopt;
   if (fo) { S.filters[fo] = FDEF[fo].one ? e.target.value : $$(`[data-fopt="${fo}"]:checked`).map(x => x.value); renderFilterBar(); renderResults(); return; }
   if (e.target.name === 'col' && e.target.closest('#dlg')) { colCount(); return; }
