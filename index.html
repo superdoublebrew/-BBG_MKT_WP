@@ -358,6 +358,8 @@ dl{margin:0}
 #qbar .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--navy);animation:qs 0.8s linear infinite;flex:none}
 @keyframes qs{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){#qbar .spin{animation:none}}
+.tbrow{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin:0 0 12px;background:var(--sunk)}
+.tbh{font-size:13.5px;font-weight:600;margin-bottom:8px;display:flex;gap:8px;align-items:center}
 </style>
 </head>
 <body>
@@ -391,11 +393,11 @@ const LABEL = {
   Has_Parent_Company: 'มีบริษัทแม่', BOI: 'BOI', Listed: 'Listed', ESG: 'ESG', Website: 'Website', LinkedIn: 'LinkedIn',
   Existing_Building: 'อาคารปัจจุบัน', Address: 'ที่อยู่', Current_Zone: 'โซนปัจจุบัน', Current_Area_sqm: 'พื้นที่ปัจจุบัน (sqm)', Occupied_Since: 'เช่าตั้งแต่', Lease_Expiry: 'วันหมดสัญญา', Expiry_Precision: 'ความแม่นยำวันหมดสัญญา',
   Required_Area_Min: 'พื้นที่ต้องการ ตั้งแต่', Required_Area_Max: 'พื้นที่ต้องการ ถึง', Office_Size: 'Size', Business_Growth: 'Business Growth', Expansion: 'ขยายพื้นที่', Expansion_sqm: 'ขยาย (sqm)',
-  Target_Building_1: 'อาคารเป้าหมาย 1', Target_Building_2: 'อาคารเป้าหมาย 2', Unit_Floor_Interested: 'Unit/Floor ที่สนใจ', Est_Rental_Rate: 'ราคาเสนอ (THB/sqm)', Rental_Rate_Note: 'หมายเหตุราคา',
+  Target_Building_1: 'อาคารเป้าหมาย 1', Target_Building_2: 'อาคารเป้าหมาย 2', Unit_Floor_Interested: 'Unit/Floor อาคาร 1', Est_Rental_Rate: 'ราคาเสนอ อาคาร 1 (THB/sqm)', Unit_Floor_2: 'Unit/Floor อาคาร 2', Est_Rental_Rate_2: 'ราคาเสนอ อาคาร 2 (THB/sqm)', Target_Details: 'อาคารเป้าหมายทั้งหมด', Rental_Rate_Note: 'หมายเหตุราคา',
   Talent_Type: 'Talent', Brand_Type: 'Brand', Bonus_Ecosystem: 'Bonus Ecosystem', Bonus_Referral: 'Bonus Referral', WP_Fit_Score: 'WP Fit Score', Recommended_Building: 'อาคารที่แนะนำ', Remark: 'Remark',
   Created_At: 'สร้างเมื่อ', Updated_At: 'แก้ไขล่าสุด', Created_By: 'สร้างโดย', Updated_By: 'แก้ไขโดย'
 };
-const NUM_F = ['Year_Established', 'Employees_TH', 'Registered_Capital', 'Current_Area_sqm', 'Required_Area_Min', 'Required_Area_Max', 'Expansion_sqm', 'Est_Rental_Rate', 'WP_Fit_Score'];
+const NUM_F = ['Year_Established', 'Employees_TH', 'Registered_Capital', 'Current_Area_sqm', 'Required_Area_Min', 'Required_Area_Max', 'Expansion_sqm', 'Est_Rental_Rate', 'Est_Rental_Rate_2', 'WP_Fit_Score'];
 const DATE_F = ['First_Contact_Date', 'Occupied_Since', 'Lease_Expiry', 'Created_At', 'Updated_At'];
 
 /* ---------------- helpers ---------------- */
@@ -729,7 +731,7 @@ function fitPanel(p, mode) {
   const cuts = S.data.config.fit.filter(x => x.Criterion === 'Recommend').map(x => ({ min: +x.Option, b: x.Score })).sort((a, b) => a.min - b.min);
   const zones = cuts.map((c, i) => ({ ...c, max: i < cuts.length - 1 ? cuts[i + 1].min - 1 : max }));
   const scale = `<div class="scale" aria-hidden="true">${zones.map(z => `<div class="zone ${rec === z.b ? 'on' : ''}" style="flex:${z.max - z.min + 1}"><b>${esc(z.b)}</b><small>${z.min}${z.max >= max ? '+' : '–' + z.max}</small></div>`).join('')}${shown != null ? `<i class="pin" style="left:${Math.min(100, shown / max * 100)}%"></i>` : ''}</div>`;
-  const targets = [p.Target_Building_1, p.Target_Building_2].filter(Boolean);
+  const targets = tbList(p).map(t => t.b);
   const recB = rec ? rec.split('/').map(s => s.trim()) : [];
   const mismatch = rec && targets.length && !targets.some(t => recB.includes(t));
   return `<div>${rows}<div class="fitrow"><span>Bonus${bonusNames.length ? ` <span class="hint">· ${bonusNames.join(', ')}</span>` : ''}</span><b>+${f.bonus}</b></div></div>
@@ -809,7 +811,7 @@ const FDEF = {
   reqBand: { l: 'พื้นที่ต้องการ', g: 'ความต้องการและสัญญา', band: 1 },
   curBand: { l: 'พื้นที่ปัจจุบัน', g: 'ความต้องการและสัญญา', band: 1 },
   zone: { l: 'โซนปัจจุบัน', g: 'ความต้องการและสัญญา', opts: () => [...allLists('Zone').map(v => [v, v]), NONE], test: byField('Current_Zone') },
-  building: { l: 'อาคารเป้าหมาย', g: 'ความต้องการและสัญญา', opts: () => [...allLists('Building').map(v => [v, v]), NONE], test: (p, v) => v === '__none' ? !p.Target_Building_1 && !p.Target_Building_2 : v === p.Target_Building_1 || v === p.Target_Building_2 },
+  building: { l: 'อาคารเป้าหมาย', g: 'ความต้องการและสัญญา', opts: () => [...allLists('Building').map(v => [v, v]), NONE], test: (p, v) => v === '__none' ? !tbList(p).length : tbList(p).some(t => t.b === v) },
   expWithin: { l: 'หมดสัญญาภายใน', g: 'ความต้องการและสัญญา', one: 1, opts: () => [6, 12, 18, 24, 36].map(m => [String(m), m + ' เดือน']), test: (p, v) => { if (!p.Lease_Expiry) return false; const t = todayISO(); return p.Lease_Expiry >= t && p.Lease_Expiry <= addMonths(t, +v); } },
   expYear: { l: 'ปีที่หมดสัญญา', g: 'ความต้องการและสัญญา', opts: () => [...[...new Set(S.data.prospects.map(p => p.Lease_Expiry && p.Lease_Expiry.slice(0, 4)).filter(Boolean))].sort().map(y => [y, y]), ['__none', 'ยังไม่ทราบ']], test: (p, v) => (p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : '__none') === v },
   fitBand: { l: 'WP Fit Score', g: 'ความต้องการและสัญญา', band: 1 },
@@ -1022,17 +1024,17 @@ function renderResults() {
   $('#results').innerHTML = `
   <div class="resbar"><span class="count" aria-live="polite">${rows.length} บริษัท</span>${can('export') ? '<button class="btn sm" data-act="csv">ส่งออก report</button>' : ''}</div>
   ${rows.length ? `<div class="tblwrap"><table><thead><tr>${th('Company_Name', 'บริษัท')}${th('Pipeline_Status', 'สถานะ')}${th('Sales_Owner', 'Owner')}${th('Current_Zone', 'โซน')}${th('Current_Area_sqm', 'พื้นที่ปัจจุบัน', 'num')}${th('Lease_Expiry', 'หมดสัญญา')}${th('Required_Area_Min', 'ต้องการ (sqm)', 'num')}${th('Office_Size', 'Size')}${th('Target_Building_1', 'อาคารเป้าหมาย')}${th('WP_Fit_Score', 'Fit', 'num')}${th('_fu', 'Follow-up ถัดไป')}</tr></thead><tbody>
-  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc([p.Industry_Category, p.Business_Type].filter(Boolean).join(' · '))}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc(p.Office_Size || '')}</td><td>${esc([p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
+  ${rows.map(p => { const fu = nextFU(p.Company_ID), late = fu && fu.Due_Date < todayISO(); return `<tr class="click" data-href="#/p/${p.Company_ID}"><td><a href="#/p/${p.Company_ID}">${esc(p.Company_Name)}</a><div class="hint">${esc([p.Industry_Category, p.Business_Type].filter(Boolean).join(' · '))}</div></td><td>${stTag(p.Pipeline_Status)}</td><td>${esc(p.Sales_Owner || '')}</td><td>${esc(p.Current_Zone || '')}</td><td class="num">${fmtN(p.Current_Area_sqm)}</td><td>${esc(fmtExpiry(p))}</td><td class="num">${p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) : '') : ''}</td><td>${esc(p.Office_Size || '')}</td><td>${esc(tbList(p).map(t => t.b).join(', '))}</td><td class="num">${p.WP_Fit_Score ?? ''}</td><td class="${late ? 'late' : ''}">${fu ? fmtD(fu.Due_Date) : ''}</td></tr>`; }).join('')}
   </tbody></table></div>` : `<div class="panel empty">ไม่พบบริษัทที่ตรงเงื่อนไข ลองลดตัวกรอง หรือ <button class="btn sm" data-act="clearF">ล้างตัวกรอง</button></div>`}`;
 }
 
 /* ---------------- report (เลือกคอลัมน์) ---------------- */
-const RLABEL = { _nextFU: 'Follow-up ถัดไป', _finYear: 'ปีงบล่าสุด', _rev: 'Revenue', _np: 'Net Profit', _margin: 'Net Margin (%)', _da: 'D/A', _liq: 'Liquidity' };
+const RLABEL = { _targets: 'อาคารเป้าหมาย + ราคา', _nextFU: 'Follow-up ถัดไป', _finYear: 'ปีงบล่าสุด', _rev: 'Revenue', _np: 'Net Profit', _margin: 'Net Margin (%)', _da: 'D/A', _liq: 'Liquidity' };
 const COL_GROUPS = [
   ['บริษัท', ['Company_ID', 'Company_Name', 'Business_Type', 'Working_Mode', 'Business_Category', 'Industry_Category', 'Country_of_Origin', 'Year_Established', 'Employees_TH', 'Registered_Capital', 'Has_Parent_Company', 'BOI', 'Listed', 'ESG', 'Website', 'LinkedIn']],
   ['การขาย', ['Pipeline_Status', 'Sales_Owner', 'Source', 'Agent', 'First_Contact_Date', 'Lost_Reason', '_nextFU', 'Remark']],
   ['สัญญาปัจจุบัน', ['Existing_Building', 'Address', 'Current_Zone', 'Current_Area_sqm', 'Occupied_Since', 'Lease_Expiry', 'Expiry_Precision']],
-  ['ความต้องการ', ['Office_Size', 'Required_Area_Min', 'Required_Area_Max', 'Business_Growth', 'Expansion', 'Expansion_sqm', 'Target_Building_1', 'Target_Building_2', 'Unit_Floor_Interested', 'Est_Rental_Rate', 'Rental_Rate_Note']],
+  ['ความต้องการ', ['Office_Size', 'Required_Area_Min', 'Required_Area_Max', 'Business_Growth', 'Expansion', 'Expansion_sqm', '_targets', 'Rental_Rate_Note']],
   ['WP Fit Score', ['WP_Fit_Score', 'Recommended_Building', 'Talent_Type', 'Brand_Type', 'Bonus_Ecosystem', 'Bonus_Referral']],
   ['งบการเงิน (ปีล่าสุด)', ['_finYear', '_rev', '_np', '_margin', '_da', '_liq']],
   ['ระบบ', ['Created_At', 'Created_By', 'Updated_At', 'Updated_By']]
@@ -1045,6 +1047,7 @@ function colVal(p, k) {
   const f = finOf(p) || {}, r2 = x => x == null ? '' : Math.round(x * 100) / 100;
   switch (k) {
     case '_nextFU': { const a = nextFU(p.Company_ID); return a ? a.Due_Date + ' ' + (a.Message || '') : ''; }
+    case '_targets': return tbList(p).map(tbOne).join(' / ');
     case '_finYear': return f.FS_Year || f.Record_Year || '';
     case '_rev': return f.Revenue ?? ''; case '_np': return f.Net_Profit ?? '';
     case '_margin': return r2(FIN_VAL.marginBand(p)); case '_da': return r2(FIN_VAL.daBand(p)); case '_liq': return r2(FIN_VAL.liqBand(p));
@@ -1077,6 +1080,14 @@ function exportCSV() {
 function colCount() { const n = $$('#dlg input[name="col"]:checked').length, el = $('#colCnt'); if (el) el.textContent = 'เลือก ' + n + ' คอลัมน์'; }
 
 /* ---------------- detail ---------------- */
+/** รายการอาคารเป้าหมายของบริษัท [{b, u, r}] — เก็บในช่อง Target_Details บรรทัดละอาคาร "BTE | 15F | 1000"
+ *  ข้อมูลเก่าที่ยังไม่มี Target_Details อ่านจากคอลัมน์เดิม (อาคาร 1–2) */
+function tbList(p) {
+  if (p.Target_Details) return String(p.Target_Details).split('\n').map(l => l.split('|').map(x => x.trim())).filter(x => x[0]).map(([b, u, r]) => ({ b, u: u || '', r: num(String(r || '').replace(/,/g, '')) }));
+  return [[p.Target_Building_1, p.Unit_Floor_Interested, p.Est_Rental_Rate], [p.Target_Building_2, p.Unit_Floor_2, p.Est_Rental_Rate_2]].filter(x => x[0]).map(([b, u, r]) => ({ b, u: u ?? '', r: num(r) }));
+}
+const tbFormat = list => list.map(t => [t.b, t.u || '', t.r ?? ''].join(' | ')).join('\n') || null;
+const tbOne = t => [t.b, t.r != null ? fmtN(t.r) + ' THB/sqm' : '', t.u].filter(Boolean).join(' · ');
 const LOG_T = { Edited: 'แก้ไขข้อมูล' };
 const SUB_LABEL = { Name: 'ชื่อ', Position: 'ตำแหน่ง', Email: 'อีเมล', Phone: 'โทรศัพท์', Role_in_Deal: 'บทบาทในดีล', Is_Primary: 'ผู้ติดต่อหลัก', FS_Year: 'ปีงบ', Revenue: 'รายได้', Net_Profit: 'กำไรสุทธิ', Total_Assets: 'สินทรัพย์รวม', Total_Liabilities: 'หนี้สินรวม', Current_Assets: 'สินทรัพย์หมุนเวียน', Current_Liabilities: 'หนี้สินหมุนเวียน' };
 /** แปลงประวัติการแก้ไข "Field: เดิม → ใหม่" ให้อ่านง่าย */
@@ -1115,7 +1126,7 @@ function vDetail(cid) {
   <div class="dlay">
     <div class="grid">
       <section class="panel"><h2>สัญญาปัจจุบัน</h2>${kv([['อาคาร', p.Existing_Building], ['โซน', p.Current_Zone], ['พื้นที่ปัจจุบัน', p.Current_Area_sqm != null ? fmtN(p.Current_Area_sqm) + ' sqm' : ''], ['เช่าตั้งแต่', fmtD(p.Occupied_Since)], ['หมดสัญญา', fmtExpiry(p)], ['ที่อยู่', p.Address]])}</section>
-      <section class="panel"><h2>ความต้องการ</h2>${kv([['Size', p.Office_Size], ['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+ sqm' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) + ' sqm' : ' sqm') : ''], ['อาคารเป้าหมาย', [p.Target_Building_1, p.Target_Building_2].filter(Boolean).join(', ')], ['Unit/Floor', p.Unit_Floor_Interested], ['ราคาเสนอ', p.Est_Rental_Rate != null ? fmtN(p.Est_Rental_Rate) + ' THB/sqm' : ''], ['หมายเหตุราคา', p.Rental_Rate_Note], ['Business Growth', p.Business_Growth], ['ขยายพื้นที่', p.Expansion === 'Yes' ? (p.Expansion_sqm ? fmtN(p.Expansion_sqm) + ' sqm' : 'Yes') : p.Expansion], ['Source', [p.Source, p.Agent].filter(Boolean).join(' · ')]])}</section>
+      <section class="panel"><h2>ความต้องการ</h2>${kv([['Size', p.Office_Size], ['พื้นที่ต้องการ', p.Required_Area_Min != null ? fmtN(p.Required_Area_Min) + (p.Required_Area_Max == null ? '+ sqm' : p.Required_Area_Max !== p.Required_Area_Min ? '–' + fmtN(p.Required_Area_Max) + ' sqm' : ' sqm') : ''], ...tbList(p).map((t, i) => ['อาคารเป้าหมาย ' + (i + 1), tbOne(t)]), ['หมายเหตุราคา', p.Rental_Rate_Note], ['Business Growth', p.Business_Growth], ['ขยายพื้นที่', p.Expansion === 'Yes' ? (p.Expansion_sqm ? fmtN(p.Expansion_sqm) + ' sqm' : 'Yes') : p.Expansion], ['Source', [p.Source, p.Agent].filter(Boolean).join(' · ')]])}</section>
       <section class="panel"><h2>ข้อมูลบริษัท</h2>${kv([['Business Type', p.Business_Type], ['Working Mode', p.Working_Mode], ['Business Category', p.Business_Category], ['ประเทศ', p.Country_of_Origin], ['ปีที่ก่อตั้ง', p.Year_Established], ['ทุนจดทะเบียน', p.Registered_Capital != null ? fmtN(p.Registered_Capital) + ' THB' : ''], ['พนักงาน (ไทย)', fmtN(p.Employees_TH)], ['มีบริษัทแม่', p.Has_Parent_Company], ['BOI / Listed / ESG', [p.BOI, p.Listed, p.ESG].map(v => v || '-').join(' / ')], ['Website', link(p.Website), 1], ['LinkedIn', link(p.LinkedIn), 1], ['ติดต่อครั้งแรก', fmtD(p.First_Contact_Date)]])}${p.Remark ? `<p style="margin:14px 0 0;white-space:pre-line"><span class="hint">Remark</span><br>${esc(p.Remark)}</p>` : ''}</section>
       <section class="panel"><h2>WP Fit Score</h2>${fitPanel(p, 'detail')}</section>
       <section class="panel"><h2>งบการเงิน (DBD)</h2>${fins.length ? `<div class="tblwrap"><table><thead><tr><th>ปีงบ</th><th class="num">รายได้</th><th class="num">กำไรสุทธิ</th><th class="num">Net Margin</th><th class="num">D/A</th><th class="num">Liquidity</th></tr></thead><tbody>${fins.map(r => `<tr><td>${esc(r.FS_Year || ('บันทึก ' + (r.Record_Year || '')))}</td><td class="num">${fmtN(r.Revenue)}</td><td class="num">${fmtN(r.Net_Profit)}</td><td class="num">${ratio(r.Net_Profit, r.Revenue)}</td><td class="num">${ratio(r.Total_Liabilities, r.Total_Assets)}</td><td class="num">${ratio(r.Current_Assets, r.Current_Liabilities)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="muted">ยังไม่มีข้อมูล</div>'}</section>
@@ -1202,7 +1213,7 @@ function vForm(cid) {
   const inp = (k, l, o = {}) => `<label class="f">${l}${o.req ? ' <span class="req">*</span>' : ''}<input class="in" name="${k}" value="${v(k)}" ${o.type ? `type="${o.type}"` : ''} ${o.num ? 'inputmode="decimal"' : ''} ${o.ph ? `placeholder="${esc(o.ph)}"` : ''}>${o.hint ? `<span class="hint">${o.hint}</span>` : ''}</label>`;
   const sel = (k, l, opts, o = {}) => `<label class="f ${o.cls || ''}" ${o.id ? `id="${o.id}"` : ''}>${l}${o.req ? ' <span class="req">*</span>' : ''}<select class="in" name="${k}"><option value="">—</option>${opts.map(x => `<option ${x === p[k] ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>`;
   const yn = (k, l) => `<label class="chk"><input type="checkbox" name="${k}" ${p[k] === 'Yes' ? 'checked' : ''}> ${l}</label>`;
-  const seg = (k, opts, multi, clear) => `<div class="seg" role="group" data-seg="${k}" ${multi ? `data-multi="${multi}"` : ''} ${clear ? 'data-clear="1"' : ''}>${opts.map(([val, lab]) => `<button type="button" data-act="seg" data-v="${esc(val)}" aria-pressed="${multi ? [p.Target_Building_1, p.Target_Building_2].includes(val) : p[k] === val}">${esc(lab)}</button>`).join('')}</div>`;
+  const seg = (k, opts, multi, clear) => `<div class="seg" role="group" data-seg="${k}" ${multi ? `data-multi="${multi}"` : ''} ${clear ? 'data-clear="1"' : ''}>${opts.map(([val, lab]) => `<button type="button" data-act="seg" data-v="${esc(val)}" aria-pressed="${multi ? tbList(p).some(t => t.b === val) : p[k] === val}">${esc(lab)}</button>`).join('')}</div>`;
   const prec = p.Lease_Expiry ? p.Expiry_Precision || 'Exact' : (cid ? 'None' : 'None');
   const ey = p.Lease_Expiry ? p.Lease_Expiry.slice(0, 4) : '', em = p.Lease_Expiry ? p.Lease_Expiry.slice(0, 7) : '', ed = p.Lease_Expiry || '';
   const y0 = new Date().getFullYear();
@@ -1243,9 +1254,9 @@ function vForm(cid) {
     <section class="fsec" id="s4"><h2>ความต้องการ</h2>
       <div class="fg">${inp('Required_Area_Min', 'พื้นที่ต้องการ ตั้งแต่ (sqm)', { num: 1 })}${inp('Required_Area_Max', 'ถึง (sqm)', { num: 1, hint: 'เว้นว่าง = ไม่จำกัด' })}${sel('Business_Growth', 'Business Growth', lists('Business_Growth'))}</div>
       <div class="f">Size (ขนาด office)${seg('Office_Size', lists('Office_Size').map(x => [x, x]), 0, 1)}<span class="hint">กดซ้ำเพื่อยกเลิกการเลือก</span></div>
-      <div class="f">อาคารเป้าหมาย (เลือกได้ 2)${seg('target', lists('Building').map(b => [b, b]), 2)}</div>
-      <div class="fg">${inp('Unit_Floor_Interested', 'Unit / Floor ที่สนใจ')}${inp('Est_Rental_Rate', 'ราคาเสนอ (THB/sqm/เดือน)', { num: 1 })}${inp('Expansion_sqm', 'ขยายพื้นที่ (sqm)', { num: 1, hint: 'ถ้ามีแผนขยาย' })}</div>
-      ${inp('Rental_Rate_Note', 'หมายเหตุราคา', { ph: 'เช่น BTB 750 / BTE 1,000, turn-key 15,000' })}
+      <div class="f">อาคารเป้าหมาย (เลือกได้หลายอาคาร)${seg('target', lists('Building').map(b => [b, b]), 99)}</div>
+      <div id="tbBox"></div>
+      <div class="fg">${inp('Expansion_sqm', 'ขยายพื้นที่ (sqm)', { num: 1, hint: 'ถ้ามีแผนขยาย' })}${inp('Rental_Rate_Note', 'หมายเหตุราคา (รวม)', { ph: 'เช่น turn-key 15,000' })}</div>
     </section>
     <section class="fsec" id="s5"><h2>WP Fit Score</h2><p class="hint" style="margin:-8px 0 0">ระบบคำนวณ Location, Budget, Industry, Growth จากข้อมูลด้านบน · เลือก Talent และ Brand เพิ่ม</p>
       <div class="fg"><div class="f">${sel('Talent_Type', 'Talent', lists('Talent_Type'))}${fitGuide('Talent')}</div><div class="f">${sel('Brand_Type', 'Brand', lists('Brand_Type'))}${fitGuide('Brand')}</div></div>
@@ -1263,9 +1274,26 @@ function vForm(cid) {
     <div class="fbar"><a class="btn" href="${cid ? '#/p/' + cid : '#/dashboard'}">ยกเลิก</a><button class="btn pri" type="submit">บันทึก</button></div>
   </form>`);
   const form = $('#pform'); form._p = p; form._ex = ex;
+  form._tb = {};   // รายละเอียดแยกตามอาคาร (จำค่าไว้แม้กดยกเลิกเลือกแล้วเลือกใหม่)
+  tbList(p).forEach(t => form._tb[t.b] = { u: t.u, r: t.r ?? '' });
+  renderTB(form);
   form.addEventListener('input', formLive); form.addEventListener('change', formLive);
   form.onsubmit = e => { e.preventDefault(); saveForm(form); };
   formLive();
+}
+/** กล่องรายละเอียดของแต่ละอาคารที่เลือก */
+function renderTB(form) {
+  const box = $('#tbBox', form); if (!box) return;
+  $$('[data-tb]', box).forEach(i => { const [b, k] = i.dataset.tb.split('|'); (form._tb[b] = form._tb[b] || {})[k] = i.value; });
+  const sel = $$('[data-seg="target"] [aria-pressed="true"]', form).map(b => b.dataset.v);
+  box.innerHTML = sel.length ? sel.map((b, i) => { const d = form._tb[b] || {}; return `<div class="tbrow"><div class="tbh"><span class="type">${esc(b)}</span> อาคารที่ ${i + 1}</div><div class="fg">
+    <label class="f">Unit / Floor ที่สนใจ<input class="in" data-tb="${esc(b)}|u" value="${esc(d.u ?? '')}"></label>
+    <label class="f">ราคาเสนอ (THB/sqm/เดือน) <span class="req">*</span><input class="in" inputmode="decimal" data-tb="${esc(b)}|r" value="${esc(d.r ?? '')}"></label></div></div>`; }).join('')
+    : '<p class="hint" style="margin:0 0 12px">เลือกอาคารด้านบน แล้วกรอกรายละเอียดของแต่ละอาคาร</p>';
+}
+function tbVal(form, b) {
+  const get = k => ($$('[data-tb]', form).find(i => i.dataset.tb === b + '|' + k) || {}).value;
+  return { u: String(get('u') || '').trim() || null, r: num(String(get('r') || '').replace(/,/g, '')) };
 }
 function contactHTML(c) {
   const roles = lists('Role_in_Deal');
@@ -1280,13 +1308,17 @@ function finHTML(r) {
 }
 function collect(form) {
   const p = clone(form._p), el = form.elements;
-  const txt = ['Company_Name', 'Lost_Reason', 'First_Contact_Date', 'Source', 'Agent', 'Sales_Owner', 'Business_Category', 'Country_of_Origin', 'Website', 'LinkedIn', 'Existing_Building', 'Current_Zone', 'Address', 'Occupied_Since', 'Business_Growth', 'Unit_Floor_Interested', 'Rental_Rate_Note', 'Talent_Type', 'Brand_Type', 'Remark'];
+  const txt = ['Company_Name', 'Lost_Reason', 'First_Contact_Date', 'Source', 'Agent', 'Sales_Owner', 'Business_Category', 'Country_of_Origin', 'Website', 'LinkedIn', 'Existing_Building', 'Current_Zone', 'Address', 'Occupied_Since', 'Business_Growth', 'Rental_Rate_Note', 'Talent_Type', 'Brand_Type', 'Remark'];
   txt.forEach(k => { if (el[k]) p[k] = el[k].value.trim() || null; });
-  ['Year_Established', 'Registered_Capital', 'Employees_TH', 'Current_Area_sqm', 'Required_Area_Min', 'Required_Area_Max', 'Est_Rental_Rate', 'Expansion_sqm'].forEach(k => p[k] = num(String(el[k].value).replace(/,/g, '')));
+  ['Year_Established', 'Registered_Capital', 'Employees_TH', 'Current_Area_sqm', 'Required_Area_Min', 'Required_Area_Max', 'Expansion_sqm'].forEach(k => p[k] = num(String(el[k].value).replace(/,/g, '')));
   ['Has_Parent_Company', 'BOI', 'Listed', 'ESG', 'Bonus_Ecosystem', 'Bonus_Referral'].forEach(k => p[k] = el[k].checked ? 'Yes' : (form._ex && form._ex[k] == null && !el[k].checked ? null : 'No'));
   p.Pipeline_Status = ($('[data-seg="Pipeline_Status"] [aria-pressed="true"]', form) || {}).dataset?.v || null;
   ['Business_Type', 'Working_Mode', 'Office_Size'].forEach(k => p[k] = ($(`[data-seg="${k}"] [aria-pressed="true"]`, form) || {}).dataset?.v || null);
   const tb = $$('[data-seg="target"] [aria-pressed="true"]', form).map(b => b.dataset.v); p.Target_Building_1 = tb[0] || null; p.Target_Building_2 = tb[1] || null;
+  const tl = tb.map(b => Object.assign({ b }, tbVal(form, b)));
+  p.Target_Details = tbFormat(tl);
+  const t1 = tl[0] || {}, t2 = tl[1] || {};   // คอลัมน์เดิม: เก็บ 2 อาคารแรกไว้ให้ส่วนที่อ้างอิงเดิมยังใช้ได้
+  p.Unit_Floor_Interested = t1.u ?? null; p.Est_Rental_Rate = t1.r ?? null; p.Unit_Floor_2 = t2.u ?? null; p.Est_Rental_Rate_2 = t2.r ?? null;
   p.Expansion = p.Expansion_sqm ? 'Yes' : (form._ex ? form._ex.Expansion : null);
   if (p.Expansion_sqm == null && p.Expansion === 'Yes' && form._ex && form._ex.Expansion_sqm != null) p.Expansion = null;
   const prec = ($('[data-seg="prec"] [aria-pressed="true"]', form) || {}).dataset?.v || 'None';
@@ -1371,6 +1403,9 @@ async function saveForm(form) {
   if (p.Pipeline_Status === 'Lost') need(p.Lost_Reason, 'เหตุผลที่ Lost', 'Lost_Reason');
   if (p.Required_Area_Max != null && p.Required_Area_Min != null && p.Required_Area_Max < p.Required_Area_Min) errs.push('พื้นที่ต้องการ "ถึง" ต้องมากกว่า "ตั้งแต่"');
   if ((fu.d && !fu.m) || (!fu.d && fu.m)) errs.push('Follow-up ต้องมีทั้งวันที่และข้อความ');
+  tbList(p).forEach(({ b, r }) => {
+    if (r == null) { errs.push('ราคาเสนอ ' + b); const i = $$('[data-tb]', form).find(x => x.dataset.tb === b + '|r'); if (i) i.classList.add('err'); }
+  });
   const eb = $('#formErr');
   if (errs.length) { eb.innerHTML = 'กรุณากรอก: ' + errs.map(esc).join(', '); eb.classList.remove('hidden'); eb.scrollIntoView({ block: 'center' }); return; }
   eb.classList.add('hidden');
@@ -1463,6 +1498,7 @@ const ACT = {
     if (multi) { if (!on && $$('[aria-pressed="true"]', g).length >= multi) { toast('เลือกได้สูงสุด ' + multi + ' อาคาร'); return; } el.setAttribute('aria-pressed', !on); }
     else if (g.dataset.clear && on) el.setAttribute('aria-pressed', 'false');
     else { $$('button', g).forEach(b => b.setAttribute('aria-pressed', b === el)); }
+    if (g.dataset.seg === 'target') renderTB(el.closest('form'));
     if (g.dataset.seg === 'prec') { const f = $('#pform').elements; f.exp_y.classList.toggle('hidden', el.dataset.v !== 'Year'); f.exp_m.classList.toggle('hidden', el.dataset.v !== 'Month'); f.exp_d.classList.toggle('hidden', el.dataset.v !== 'Exact'); }
     formLive();
   },
@@ -1505,6 +1541,7 @@ function usageOf(list, value) {
   if (value == null || value === '') return 0;
   const ids = new Set();
   (USAGE_MAP[list] || []).forEach(([tb, f]) => S.data[tb].forEach(r => { if (r[f] === value) ids.add(r.Company_ID); }));
+  if (list === 'Building') S.data.prospects.forEach(r => { if (tbList(r).some(t => t.b === value)) ids.add(r.Company_ID); });
   return ids.size;
 }
 function cfgInit() {
@@ -1710,6 +1747,7 @@ function applyConfigLocal(p) {
   const map = { Zone: ['Current_Zone'], Building: ['Target_Building_1', 'Target_Building_2'], Sales_Owner: ['Sales_Owner'], Source: ['Source'], Agent: ['Agent'], Business_Category: ['Business_Category'], Country: ['Country_of_Origin'], Business_Growth: ['Business_Growth'], Talent_Type: ['Talent_Type'], Brand_Type: ['Brand_Type'] };
   p.renames.forEach(r => {
     (map[r.List] || []).forEach(f => S.data.prospects.forEach(x => { if (x[f] === r.from) x[f] = r.to; }));
+    if (r.List === 'Building') S.data.prospects.forEach(x => { if (x.Target_Details) x.Target_Details = tbFormat(tbList(x).map(t => t.b === r.from ? { ...t, b: r.to } : t)); });
     if (r.List === 'Role_in_Deal') S.data.contacts.forEach(c => { if (c.Role_in_Deal === r.from) c.Role_in_Deal = r.to; });
     if (r.List === 'Sales_Owner') S.data.actions.forEach(a => { if (a.Assigned_To === r.from) a.Assigned_To = r.to; });
   });
